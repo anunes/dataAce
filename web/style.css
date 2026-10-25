@@ -571,14 +571,50 @@ kbd {
   margin: 0 auto;
 }
 .download-box h2 { font-size: 1.75rem; font-weight: 800; margin-bottom: .75rem; }
-.download-box p { color: var(--muted); margin-bottom: 2rem; }
-.platform-badges {
-  display: flex;
-  gap: .75rem;
-  justify-content: center;
-  flex-wrap: wrap;
-  margin-top: 1.5rem;
+.download-box > p { color: var(--muted); margin-bottom: 2rem; }
+.download-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+  text-align: left;
 }
+@media (max-width: 640px) {
+  .download-grid { grid-template-columns: 1fr; }
+}
+.download-platform { display: flex; flex-direction: column; gap: .5rem; }
+.download-platform-label {
+  font-size: .7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--muted);
+  margin-bottom: .25rem;
+}
+.btn-download {
+  display: block;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: .6rem 1rem;
+  font-size: .82rem;
+  font-weight: 500;
+  color: var(--text);
+  text-decoration: none;
+  transition: border-color .15s, background .15s;
+}
+.btn-download:hover {
+  border-color: var(--accent);
+  background: rgba(47,129,247,.08);
+  text-decoration: none;
+  color: var(--text);
+}
+.download-note {
+  margin-top: 1.5rem !important;
+  font-size: .78rem;
+  color: var(--muted);
+  margin-bottom: 0 !important;
+}
+.download-note a { color: var(--muted); text-decoration: underline; }
 .platform-badge {
   background: var(--surface2);
   border: 1px solid var(--border);
