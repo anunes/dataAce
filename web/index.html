@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DataAce — Desktop Database Client</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a class="nav-logo" href="#">
+    <img src="assets/icon.png" class="nav-logo-icon" alt="DataAce icon" />
+    DataAce
+  </a>
+  <div class="nav-links">
+    <a href="#features">Features</a>
+    <a href="#databases">Databases</a>
+    <a href="#howto">How to Use</a>
+    <a href="#docs">Documentation</a>
+    <a href="https://dataace.anunes.net" class="nav-cta">Download</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<div class="hero">
+  <img src="assets/icon.png" class="hero-icon" alt="DataAce" />
+  <div class="hero-badge">Desktop Database Client</div>
+  <h1>Query, browse, and manage<br /><span>any database</span> — natively.</h1>
+  <p>DataAce is a fast, cross-platform desktop app for working with SQLite, MySQL, PostgreSQL, Oracle, and SQL Server. Built with Tauri for native performance.</p>
+  <div class="btn-group">
+    <a href="https://dataace.anunes.net" class="btn-primary">
+      &#8659; Download DataAce
+    </a>
+    <a href="#howto" class="btn-secondary">
+      &#9654; See how it works
+    </a>
+  </div>
+  <p class="platforms">Available for macOS &bull; Windows &bull; Linux</p>
+</div>
+
+<!-- SCREENSHOT MOCKUP -->
+<div class="screenshot-wrapper">
+  <div class="screenshot-frame">
+    <div class="screenshot-titlebar">
+      <span class="dot dot-red"></span>
+      <span class="dot dot-yellow"></span>
+      <span class="dot dot-green"></span>
+      <span class="screenshot-titlebar-label">users &mdash; myapp &mdash; Local MySQL &mdash; DataAce</span>
+    </div>
+    <div class="screenshot-body">
+      <div class="screenshot-sidebar">
+        <div class="ss-section-label">SQLite</div>
+        <div class="ss-item"><span class="ss-dot" style="background:#22c55e"></span>test.db</div>
+        <div class="ss-section-label">MySQL</div>
+        <div class="ss-item active"><span class="ss-dot" style="background:#3b82f6"></span>Local MySQL</div>
+        <div class="ss-section-label">PostgreSQL</div>
+        <div class="ss-item"><span class="ss-dot" style="background:#f97316"></span>Prod PG</div>
+      </div>
+      <div class="screenshot-main">
+        <div class="ss-breadcrumb">myapp &rsaquo; <strong style="color:#e6edf3">users</strong></div>
+        <div class="ss-tabs">
+          <div class="ss-tab active">Browse</div>
+          <div class="ss-tab">Structure</div>
+          <div class="ss-tab">Query</div>
+          <div class="ss-tab">Relations</div>
+          <div class="ss-tab">Triggers</div>
+          <div class="ss-tab">Info</div>
+        </div>
+        <div class="ss-table-area">
+          <table class="ss-table">
+            <thead>
+              <tr>
+                <th>id</th>
+                <th>name</th>
+                <th>email</th>
+                <th>role</th>
+                <th>created_at</th>
+                <th>deleted_at</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="tag-num">1</td>
+                <td class="tag-str">Alice</td>
+                <td class="tag-str">alice@example.com</td>
+                <td class="tag-str">admin</td>
+                <td class="tag-date">2024-01-15</td>
+                <td class="tag-null">NULL</td>
+              </tr>
+              <tr>
+                <td class="tag-num">2</td>
+                <td class="tag-str">Bob</td>
+                <td class="tag-str">bob@example.com</td>
+                <td class="tag-str">user</td>
+                <td class="tag-date">2024-02-03</td>
+                <td class="tag-null">NULL</td>
+              </tr>
+              <tr>
+                <td class="tag-num">3</td>
+                <td class="tag-str">Carol</td>
+                <td class="tag-str">carol@example.com</td>
+                <td class="tag-str">user</td>
+                <td class="tag-date">2024-03-11</td>
+                <td class="tag-null">NULL</td>
+              </tr>
+              <tr>
+                <td class="tag-num">4</td>
+                <td class="tag-str">Dave</td>
+                <td class="tag-str">dave@example.com</td>
+                <td class="tag-str">editor</td>
+                <td class="tag-date">2024-04-22</td>
+                <td class="tag-date">2024-09-01</td>
+              </tr>
+              <tr>
+                <td class="tag-num">5</td>
+                <td class="tag-str">Eve</td>
+                <td class="tag-str">eve@example.com</td>
+                <td class="tag-str">user</td>
+                <td class="tag-date">2024-06-17</td>
+                <td class="tag-null">NULL</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- FEATURES -->
+<section id="features">
+  <div class="section-inner">
+    <span class="section-tag">Features</span>
+    <h2 class="section-title">Everything you need, nothing you don't.</h2>
+    <p class="section-sub">A focused tool built for developers and DBAs who work with real databases every day.</p>
+    <div class="features-grid">
+      <div class="feature-card">
+        <span class="feature-icon">&#128196;</span>
+        <h3>Browse Table Data</h3>
+        <p>Paginated data viewer with filtering, sorting, and inline cell editing. Export any result set to CSV, JSON, or SQL instantly.</p>
+      </div>
+      <div class="feature-card">
+        <span class="feature-icon">&#128295;</span>
+        <h3>Table Structure</h3>
+        <p>Inspect and edit columns with full metadata: type, nullability, default, extra (AUTO_INCREMENT), charset, collation, and comment.</p>
+      </div>
+      <div class="feature-card">
+        <span class="feature-icon">&#9000;</span>
+        <h3>SQL Query Editor</h3>
+        <p>Write and run raw SQL with syntax highlighting. Results appear instantly in a resizable grid. Query history is persisted across sessions.</p>
+      </div>
+      <div class="feature-card">
+        <span class="feature-icon">&#128279;</span>
+        <h3>Foreign Key Relations</h3>
+        <p>Visualize foreign key constraints and understand how tables relate to each other without writing any SQL.</p>
+      </div>
+      <div class="feature-card">
+        <span class="feature-icon">&#9889;</span>
+        <h3>Triggers</h3>
+        <p>View all triggers on a table, including event type (INSERT/UPDATE/DELETE), timing (BEFORE/AFTER), and the full trigger body.</p>
+      </div>
+      <div class="feature-card">
+        <span class="feature-icon">&#128202;</span>
+        <h3>Table Info &amp; Auto Increment</h3>
+        <p>Row count, data size, index size, storage engine, collation, and CREATE TABLE DDL. Set a new AUTO_INCREMENT value with one click (MySQL).</p>
+      </div>
+      <div class="feature-card">
+        <span class="feature-icon">&#128273;</span>
+        <h3>Index Management</h3>
+        <p>Create and drop indexes directly from the Structure tab. Choose columns, set unique, and pick index type (BTREE, HASH, or FULLTEXT for MySQL).</p>
+      </div>
+      <div class="feature-card">
+        <span class="feature-icon">&#128101;</span>
+        <h3>MySQL User Manager</h3>
+        <p>Manage MySQL accounts — create users, set passwords, grant global or per-schema privileges, and configure resource limits.</p>
+      </div>
+      <div class="feature-card">
+        <span class="feature-icon">&#128190;</span>
+        <h3>Export &amp; Migrate</h3>
+        <p>Export tables or entire databases as SQL, CSV, JSON, or XML. Migrate data cross-engine with automatic type mapping and batch inserts.</p>
+      </div>
+      <div class="feature-card">
+        <span class="feature-icon">&#128640;</span>
+        <h3>Create Database Wizard</h3>
+        <p>Step-by-step wizard to create a new database on any engine. For MySQL, choose character set and collation up front.</p>
+      </div>
+      <div class="feature-card">
+        <span class="feature-icon">&#128101;</span>
+        <h3>Connection Management</h3>
+        <p>Save multiple connection profiles with color-coded labels. SSH tunnel support for PostgreSQL. Reconnect in one click.</p>
+      </div>
+      <div class="feature-card">
+        <span class="feature-icon">&#127763;</span>
+        <h3>Light &amp; Dark Theme</h3>
+        <p>Follows your system preference automatically, or manually cycle between light, dark, and system modes.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- DATABASES -->
+<section id="databases">
+  <div class="section-inner">
+    <span class="section-tag">Compatibility</span>
+    <h2 class="section-title">Five databases. One app.</h2>
+    <p class="section-sub">Native drivers for every major relational database system — no JDBC, no ODBC, no overhead.</p>
+    <div class="db-grid">
+      <div class="db-card db-sqlite">
+        <span class="db-icon">&#128441;</span>
+        <h3>SQLite</h3>
+        <p>Open local <code>.db</code> / <code>.sqlite</code> files or use in-memory databases.</p>
+      </div>
+      <div class="db-card db-mysql">
+        <span class="db-icon">&#128171;</span>
+        <h3>MySQL</h3>
+        <p>Connect to MySQL 5.7+ and MariaDB servers on any host and port.</p>
+      </div>
+      <div class="db-card db-postgres">
+        <span class="db-icon">&#128024;</span>
+        <h3>PostgreSQL</h3>
+        <p>Full support for PostgreSQL 12+ with schema-aware queries and type mapping.</p>
+      </div>
+      <div class="db-card db-oracle">
+        <span class="db-icon">&#128308;</span>
+        <h3>Oracle</h3>
+        <p>Connect to Oracle Database with TNS or Easy Connect string support.</p>
+      </div>
+      <div class="db-card db-mssql">
+        <span class="db-icon">&#128167;</span>
+        <h3>SQL Server</h3>
+        <p>Microsoft SQL Server and Azure SQL with Windows or SQL authentication.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- HOW TO USE -->
+<section id="howto">
+  <div class="section-inner">
+    <span class="section-tag">Getting Started</span>
+    <h2 class="section-title">Up and running in minutes.</h2>
+    <p class="section-sub">No configuration files, no CLI setup. Just download, open, and connect.</p>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-content">
+          <h3>Download &amp; Install</h3>
+          <p>Download the installer for your platform from <a href="https://dataace.anunes.net">dataace.anunes.net</a>. Available for macOS (.dmg), Windows (.msi), and Linux (.AppImage / .deb / .rpm).</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-content">
+          <h3>Add a Connection</h3>
+          <p>Click the <code>+</code> button in the sidebar to create a new connection profile. Give it a name, choose your database type, and fill in the host, port, username, and password. For SQLite, click the folder icon to browse for a file.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-content">
+          <h3>Connect &amp; Browse</h3>
+          <p>Click your connection in the sidebar to connect. The database tree populates with all databases and tables. Click any table to start browsing its data in the <strong>Browse</strong> tab.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-content">
+          <h3>Inspect Structure &amp; Manage Indexes</h3>
+          <p>Switch to the <strong>Structure</strong> tab to see all columns with type, charset, collation, and comment. Add or edit columns and create or drop indexes — all without writing DDL manually.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">5</div>
+        <div class="step-content">
+          <h3>Run SQL Queries</h3>
+          <p>Switch to the <strong>Query</strong> tab to open the SQL editor. Write any query and press <code>Cmd+Enter</code> (macOS) or <code>Ctrl+Enter</code> (Windows/Linux) to run it, and see results immediately below.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">6</div>
+        <div class="step-content">
+          <h3>Manage MySQL Users</h3>
+          <p>When connected to MySQL, click the <strong>users icon</strong> in the sidebar footer to open the User Manager. Create accounts, set passwords, grant global and per-schema privileges, and configure resource limits.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">7</div>
+        <div class="step-content">
+          <h3>Export or Migrate Your Data</h3>
+          <p>Use the export menu to save a table or full database as <strong>SQL</strong>, <strong>CSV</strong>, <strong>JSON</strong>, or <strong>XML</strong>. Use the <strong>⇄ migrate icon</strong> to copy data between databases of any supported type — cross-engine migrations included.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- DOCUMENTATION -->
+<section id="docs">
+  <div class="section-inner">
+    <span class="section-tag">Documentation</span>
+    <h2 class="section-title">Full feature reference.</h2>
+    <p class="section-sub">Everything DataAce can do, explained in detail.</p>
+
+    <div class="docs-layout">
+
+      <!-- SIDEBAR NAV -->
+      <nav class="docs-nav" aria-label="Documentation sections">
+        <div class="docs-nav-group">Connections</div>
+        <a href="#doc-connections">Adding &amp; Editing</a>
+        <a href="#doc-sqlite">Opening SQLite Files</a>
+        <a href="#doc-ssh">SSH Tunnels</a>
+        <div class="docs-nav-group">Working with Data</div>
+        <a href="#doc-sidebar">Sidebar &amp; Navigation</a>
+        <a href="#doc-browse">Browse Tab</a>
+        <a href="#doc-structure">Structure Tab</a>
+        <a href="#doc-query">Query Tab</a>
+        <a href="#doc-relations">Relations Tab</a>
+        <a href="#doc-triggers">Triggers Tab</a>
+        <a href="#doc-info">Info Tab</a>
+        <div class="docs-nav-group">Database Tools</div>
+        <a href="#doc-createdb">Creating a Database</a>
+        <a href="#doc-export">Exporting Data</a>
+        <a href="#doc-migrate">Migrating Data</a>
+        <a href="#doc-users">MySQL User Manager</a>
+        <a href="#doc-themes">Themes</a>
+      </nav>
+
+      <!-- CONTENT -->
+      <div class="docs-content">
+
+        <!-- Connections -->
+        <div class="doc-section" id="doc-connections">
+          <h3>Adding &amp; Editing Connections</h3>
+          <p>Click the <kbd>+</kbd> button in the top-right of the sidebar to open the connection form. Fill in the details for your database and click <strong>Save</strong>. A successful connection saves the profile to the sidebar immediately.</p>
+          <div class="doc-table-wrap">
+            <table class="doc-table">
+              <thead><tr><th>Field</th><th>Description</th></tr></thead>
+              <tbody>
+                <tr><td>Name</td><td>Display label shown in the sidebar.</td></tr>
+                <tr><td>Type</td><td>SQLite, MySQL, PostgreSQL, Oracle, or SQL Server.</td></tr>
+                <tr><td>Color</td><td>Color dot shown next to the profile for quick identification.</td></tr>
+                <tr><td>Host / Port</td><td>Server address and port. Defaults are pre-filled per type.</td></tr>
+                <tr><td>Username / Password</td><td>Authentication credentials.</td></tr>
+                <tr><td>Database</td><td>Optional default database to select on connect.</td></tr>
+                <tr><td>Service Name</td><td>Oracle only — TNS service name (e.g. <code>ORCL</code>).</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p>Right-click any profile in the sidebar for a context menu with <strong>Edit</strong>, <strong>Duplicate</strong>, <strong>Disconnect</strong>, and <strong>Delete</strong> options.</p>
+        </div>
+
+        <!-- SQLite -->
+        <div class="doc-section" id="doc-sqlite">
+          <h3>Opening SQLite Files</h3>
+          <p>Click the <strong>folder icon</strong> in the sidebar header to open a native file picker filtered to <code>.db</code>, <code>.sqlite</code>, <code>.sqlite3</code>, and <code>.db3</code> files.</p>
+          <p>After the file opens successfully, DataAce asks whether to <strong>Add to Connections</strong> or just <strong>Open Only</strong>:</p>
+          <ul class="doc-list">
+            <li><strong>Add to Connections</strong> — saves the file path as a named profile in the sidebar so you can reconnect later.</li>
+            <li><strong>Open Only</strong> — connects for this session without saving.</li>
+          </ul>
+        </div>
+
+        <!-- SSH -->
+        <div class="doc-section" id="doc-ssh">
+          <h3>SSH Tunnels</h3>
+          <p>PostgreSQL connections support SSH tunnelling. Expand the <strong>SSH Tunnel</strong> section in the connection form and fill in:</p>
+          <ul class="doc-list">
+            <li><strong>SSH Host</strong> — the jump server hostname or IP.</li>
+            <li><strong>SSH Port</strong> — defaults to 22.</li>
+            <li><strong>SSH User</strong> — login username on the jump server.</li>
+            <li><strong>SSH Password</strong> — password authentication.</li>
+          </ul>
+          <p>DataAce opens the tunnel automatically on connect and tears it down on disconnect.</p>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="doc-section" id="doc-sidebar">
+          <h3>Sidebar &amp; Navigation</h3>
+          <p>The sidebar shows all saved connection profiles grouped by database type. Profiles with an active connection show a green dot. Click a profile to connect; right-click &rarr; Disconnect to close the session.</p>
+          <div class="doc-callout">
+            <strong>Refreshing</strong> — click the <strong>↻</strong> button in the sidebar header to reload the database and table list. You can also right-click any database and choose <strong>Refresh</strong>.
+          </div>
+          <p>Once connected, expand a database to see its tables. Click a table to select it — the main area updates across all tabs. Right-click a database or table for options including <strong>Create Table</strong>, <strong>Drop Table</strong>, and <strong>Truncate</strong>.</p>
+        </div>
+
+        <!-- Browse -->
+        <div class="doc-section" id="doc-browse">
+          <h3>Browse Tab</h3>
+          <p>The Browse tab shows paginated rows for the selected table. Controls at the top let you adjust page size (25 / 50 / 100 / 250 / 500 rows).</p>
+          <h4>Sorting</h4>
+          <p>Click any column header to sort ascending; click again to sort descending.</p>
+          <h4>Filtering</h4>
+          <p>Click the <strong>Filter</strong> button to add filter conditions. Each condition lets you pick a column, an operator (<code>=</code>, <code>!=</code>, <code>LIKE</code>, <code>&gt;</code>, <code>&lt;</code>, <code>IS NULL</code>, <code>BETWEEN</code>, etc.) and a value. Multiple filters are AND-ed together.</p>
+          <h4>Inline Editing</h4>
+          <p>Double-click any cell to edit it in place. Press <kbd>Enter</kbd> to commit or <kbd>Escape</kbd> to cancel. Changes issue an <code>UPDATE</code> immediately. Click <strong>+ row</strong> to insert a new empty row, or the trash icon to delete a row.</p>
+          <h4>Exporting</h4>
+          <p>Click <strong>Export</strong> in the Browse toolbar to save the current result set as <strong>CSV</strong>, <strong>TSV</strong>, <strong>JSON</strong>, <strong>XML</strong>, or <strong>SQL INSERT</strong> statements.</p>
+        </div>
+
+        <!-- Structure -->
+        <div class="doc-section" id="doc-structure">
+          <h3>Structure Tab</h3>
+          <p>The Structure tab shows two panels: <strong>Columns</strong> and <strong>Indexes</strong>.</p>
+          <h4>Columns</h4>
+          <p>Each row displays: name, data type, nullability, key membership (PRI / UNI / MUL), default value, and (when set) Extra, Character Set, Collation, and Comment. These extra columns appear automatically when any column carries values for them.</p>
+          <p>Use <strong>+ Add Column</strong> or click the pencil icon on an existing row to open the column editor:</p>
+          <ul class="doc-list">
+            <li>Name, Type, Nullable, Default</li>
+            <li>Extra — <code>AUTO_INCREMENT</code> or <code>ON UPDATE CURRENT_TIMESTAMP</code> (MySQL)</li>
+            <li>Character Set &amp; Collation (MySQL only)</li>
+            <li>Comment (all engines)</li>
+            <li>Position — <em>After column</em> selector (MySQL)</li>
+          </ul>
+          <h4>Indexes</h4>
+          <p>All indexes are listed with their type (PRIMARY, UNIQUE, INDEX, FULLTEXT), column list, and method (BTREE / HASH). Click <strong>+ Add Index</strong> to create one:</p>
+          <ul class="doc-list">
+            <li>Enter a name, select one or more columns via checkboxes.</li>
+            <li>Toggle <strong>Unique</strong> on or off.</li>
+            <li>Select index type: BTREE (default), HASH (MySQL only), FULLTEXT (MySQL only).</li>
+          </ul>
+          <p>Click the trash icon on any non-primary index row to drop it.</p>
+        </div>
+
+        <!-- Query -->
+        <div class="doc-section" id="doc-query">
+          <h3>Query Tab</h3>
+          <p>A full SQL editor with syntax highlighting, auto-resize, and a resizable result pane below.</p>
+          <div class="doc-table-wrap">
+            <table class="doc-table">
+              <thead><tr><th>Shortcut</th><th>Action</th></tr></thead>
+              <tbody>
+                <tr><td><kbd>Cmd/Ctrl</kbd> + <kbd>Enter</kbd></td><td>Run the query (or selected text only)</td></tr>
+                <tr><td><kbd>Cmd/Ctrl</kbd> + <kbd>↑</kbd> / <kbd>↓</kbd></td><td>Navigate query history</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p>Results show row count, execution time, and an exportable grid. Non-SELECT statements show rows-affected feedback. Errors appear inline below the editor. The editor remembers the last query per connection across sessions.</p>
+        </div>
+
+        <!-- Relations -->
+        <div class="doc-section" id="doc-relations">
+          <h3>Relations Tab</h3>
+          <p>Shows all foreign key constraints associated with the selected table — both outbound (this table references another) and inbound (other tables reference this one).</p>
+          <p>Each row shows the constraint name, local column(s), referenced table, referenced column(s), and the <code>ON DELETE</code> / <code>ON UPDATE</code> rules.</p>
+        </div>
+
+        <!-- Triggers -->
+        <div class="doc-section" id="doc-triggers">
+          <h3>Triggers Tab</h3>
+          <p>Lists all triggers defined on the selected table:</p>
+          <ul class="doc-list">
+            <li><strong>Name</strong> — trigger identifier.</li>
+            <li><strong>Event</strong> — INSERT, UPDATE, or DELETE.</li>
+            <li><strong>Timing</strong> — BEFORE or AFTER.</li>
+            <li><strong>Body</strong> — the full trigger statement, shown in a monospace block.</li>
+          </ul>
+        </div>
+
+        <!-- Info -->
+        <div class="doc-section" id="doc-info">
+          <h3>Info Tab</h3>
+          <p>When a <strong>table</strong> is selected, Info shows:</p>
+          <ul class="doc-list">
+            <li>Row Count, Data Size, Index Size, Total Size</li>
+            <li>Storage engine and collation (MySQL)</li>
+            <li>Created date and table comment</li>
+            <li>Auto Increment — current value, with a <strong>Set</strong> widget to change it (MySQL only). Enter a new value and click <strong>Set</strong> to issue <code>ALTER TABLE … AUTO_INCREMENT = N</code>.</li>
+            <li>Full <code>CREATE TABLE</code> DDL</li>
+          </ul>
+          <p>When no table is selected but a <strong>database</strong> is, Info shows database-level metadata including character set, collation, and schema summary.</p>
+        </div>
+
+        <!-- Create DB -->
+        <div class="doc-section" id="doc-createdb">
+          <h3>Creating a Database</h3>
+          <p>Click the <strong>database icon</strong> in the sidebar to open the New Database wizard. Two steps:</p>
+          <ol class="doc-list">
+            <li><strong>Connection</strong> — select the database type and fill in connection details. Click <em>Test &amp; Continue</em>.</li>
+            <li><strong>Database</strong> — enter a name. For MySQL, also pick:
+              <ul>
+                <li><strong>Character Set</strong> — <code>utf8mb4</code> (recommended), <code>utf8</code>, <code>latin1</code>, <code>ascii</code>.</li>
+                <li><strong>Collation</strong> — options update automatically based on the chosen charset.</li>
+              </ul>
+            </li>
+          </ol>
+          <p>For SQLite, name your database and pick a save folder. Leaving the folder blank creates an in-memory database.</p>
+        </div>
+
+        <!-- Export -->
+        <div class="doc-section" id="doc-export">
+          <h3>Exporting Data</h3>
+          <h4>Table Export</h4>
+          <p>With a table selected, click <strong>Export</strong> in the Browse toolbar. Choose: <strong>CSV</strong>, <strong>TSV</strong>, <strong>JSON</strong>, <strong>XML</strong>, or <strong>SQL</strong> (INSERT statements).</p>
+          <h4>Database Export</h4>
+          <p>Click <strong>Export DB</strong> in the sidebar bottom bar. Options:</p>
+          <ul class="doc-list">
+            <li>Format: SQL dump, CSV, JSON, or XML.</li>
+            <li>Structure + Data or Structure Only.</li>
+            <li>Per-table selection — choose which tables to include.</li>
+          </ul>
+        </div>
+
+        <!-- Migrate -->
+        <div class="doc-section" id="doc-migrate">
+          <h3>Migrating Data</h3>
+          <p>Click the <strong>⇄</strong> (arrows) icon in the sidebar footer to open the Migration Wizard. Four steps:</p>
+          <ol class="doc-list doc-list-steps">
+            <li>
+              <strong>Source</strong> — pick an active source connection, select a database, then check the tables to migrate.
+            </li>
+            <li>
+              <strong>Target</strong> — pick any saved connection profile (DataAce auto-connects if needed). Select a target database, or choose <em>＋ Create new database…</em> to create one on the fly.
+            </li>
+            <li>
+              <strong>Type Mapping</strong> — pre-filled table showing source column types mapped to the target engine. Edit any cell to override.
+            </li>
+            <li>
+              <strong>Execute</strong> — DataAce creates each table on the target and streams data in 500-row batches. A progress bar per table and a live log show status.
+            </li>
+          </ol>
+          <div class="doc-callout">
+            <strong>Cross-engine migrations are supported.</strong> For example, migrate a MySQL database to PostgreSQL — type mappings (e.g. <code>TINYINT(1)</code> → <code>BOOLEAN</code>, <code>DATETIME</code> → <code>TIMESTAMP</code>) are applied automatically and can be adjusted in step 3.
+          </div>
+        </div>
+
+        <!-- MySQL User Manager -->
+        <div class="doc-section" id="doc-users">
+          <h3>MySQL User Manager</h3>
+          <p>Click the <strong>users icon</strong> in the sidebar footer to open the User Manager. The icon is only enabled when a MySQL connection is active.</p>
+          <p>The modal lists all MySQL accounts grouped by username. Click a username to expand its hosts, then click a specific <code>user@host</code> entry to load that account for editing.</p>
+          <h4>General Tab</h4>
+          <div class="doc-table-wrap">
+            <table class="doc-table">
+              <thead><tr><th>Field</th><th>Description</th></tr></thead>
+              <tbody>
+                <tr><td>Username</td><td>MySQL account name.</td></tr>
+                <tr><td>Host</td><td>Allowed host — <code>%</code> = any, <code>localhost</code>, IP, etc.</td></tr>
+                <tr><td>Password</td><td>Set or change the account password.</td></tr>
+                <tr><td>Max Queries/Hour</td><td>0 = unlimited.</td></tr>
+                <tr><td>Max Updates/Hour</td><td>0 = unlimited.</td></tr>
+                <tr><td>Max Connections/Hour</td><td>0 = unlimited.</td></tr>
+                <tr><td>Max User Connections</td><td>0 = unlimited.</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p>Click <strong>Save Changes</strong> to apply. Create a new account with <strong>+ New User</strong> at the top of the user list.</p>
+          <h4>Global Privileges Tab</h4>
+          <p>Toggle server-wide privileges using checkboxes organised into groups:</p>
+          <ul class="doc-list">
+            <li><strong>Data</strong> — SELECT, INSERT, UPDATE, DELETE, FILE</li>
+            <li><strong>Structure</strong> — CREATE, ALTER, INDEX, DROP, CREATE TEMPORARY TABLES, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, EXECUTE, CREATE VIEW, EVENT, TRIGGER</li>
+            <li><strong>Administration</strong> — GRANT, SUPER, PROCESS, RELOAD, SHUTDOWN, SHOW DATABASES, LOCK TABLES, REFERENCES, REPLICATION CLIENT, REPLICATION SLAVE, CREATE USER</li>
+          </ul>
+          <h4>Schema Privileges Tab</h4>
+          <p>Grant per-database privileges. Select a schema from the left panel, then check or uncheck individual privileges in the right panel. Click <strong>Save Changes</strong> to apply <code>GRANT … ON schema.* TO user@host</code>.</p>
+          <h4>Resources Tab</h4>
+          <p>Configure per-hour and per-connection resource limits (same fields as the General tab, presented for convenience alongside other settings).</p>
+        </div>
+
+        <!-- Themes -->
+        <div class="doc-section" id="doc-themes">
+          <h3>Themes</h3>
+          <p>Click the theme icon (sun / moon / monitor) in the top-right of the sidebar to cycle between three modes:</p>
+          <ul class="doc-list">
+            <li><strong>Light</strong> — white background, dark text.</li>
+            <li><strong>Dark</strong> — dark background (default).</li>
+            <li><strong>System</strong> — follows your OS appearance setting automatically.</li>
+          </ul>
+          <p>Your preference is saved and restored across sessions.</p>
+        </div>
+
+      </div><!-- /.docs-content -->
+    </div><!-- /.docs-layout -->
+  </div>
+</section>
+
+<!-- DOWNLOAD -->
+<section id="download">
+  <div class="section-inner">
+    <div class="download-box">
+      <h2>Download DataAce</h2>
+      <p>Free to use. No account required. No telemetry.</p>
+      <a href="https://dataace.anunes.net" class="btn-primary" style="display:inline-flex">
+        &#8659;&nbsp; Get DataAce
+      </a>
+      <div class="platform-badges">
+        <span class="platform-badge">&#63743; macOS</span>
+        <span class="platform-badge">&#10064; Windows</span>
+        <span class="platform-badge">&#127822; Linux</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-inner">
+    <div>
+      <a href="https://dataace.anunes.net">dataace.anunes.net</a>
+    </div>
+    <div>&copy; 2006&ndash;2026 @nunes. All rights reserved.</div>
+  </div>
+</footer>
+
+</body>
+</html>
