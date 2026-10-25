@@ -12,17 +12,17 @@ jobs:
       matrix:
         include:
           - platform: macos-latest
+            rust_target: aarch64-apple-darwin
             args: '--target aarch64-apple-darwin'
-            name: macOS-arm64
           - platform: macos-13
+            rust_target: x86_64-apple-darwin
             args: '--target x86_64-apple-darwin'
-            name: macOS-x86_64
           - platform: windows-latest
+            rust_target: ''
             args: ''
-            name: Windows
           - platform: ubuntu-22.04
+            rust_target: ''
             args: ''
-            name: Linux
 
     runs-on: ${{ matrix.platform }}
 
@@ -39,10 +39,15 @@ jobs:
         with:
           version: 9
 
-      - name: Install Rust
+      - name: Install Rust (native)
+        if: matrix.rust_target == ''
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Rust (cross-compile)
+        if: matrix.rust_target != ''
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin' || matrix.platform == 'macos-13' && 'x86_64-apple-darwin' || '' }}
+          targets: ${{ matrix.rust_target }}
 
       - name: Install Linux dependencies
         if: matrix.platform == 'ubuntu-22.04'
