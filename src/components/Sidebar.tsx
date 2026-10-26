@@ -372,74 +372,76 @@ export default function Sidebar({
       {/* Create Table modal */}
       {showCreateTable && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-5 w-[560px] max-h-[80vh] overflow-y-auto shadow-2xl">
-            <h3 className="font-semibold mb-3 text-gray-800 dark:text-gray-100">New Table{selectedDb ? ` in ${selectedDb}` : ""}</h3>
+          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl w-[560px] max-h-[80vh] flex flex-col shadow-2xl">
+            <div className="p-5 overflow-y-auto flex-1">
+              <h3 className="font-semibold mb-3 text-gray-800 dark:text-gray-100">New Table{selectedDb ? ` in ${selectedDb}` : ""}</h3>
 
-            <div className="mb-3">
-              <label className="text-xs text-gray-400 mb-1 block">Table Name</label>
-              <input
-                autoFocus
-                className={inputCls}
-                placeholder="table_name"
-                value={newTableName}
-                onChange={e => setNewTableName(e.target.value)}
-              />
-            </div>
-
-            <div className="mb-2">
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-xs text-gray-400">Columns</span>
-                <button onClick={addCol} className="text-xs text-blue-500 hover:text-blue-400 flex items-center gap-1">
-                  <Plus size={10} /> Add Column
-                </button>
+              <div className="mb-3">
+                <label className="text-xs text-gray-400 mb-1 block">Table Name</label>
+                <input
+                  autoFocus
+                  className={inputCls}
+                  placeholder="table_name"
+                  value={newTableName}
+                  onChange={e => setNewTableName(e.target.value)}
+                />
               </div>
 
-              <div className="space-y-1">
-                {/* Header */}
-                <div className="grid grid-cols-[1fr_1fr_auto_auto_auto] gap-2 text-xs text-gray-400 px-1">
-                  <span>Name</span><span>Type</span><span>PK</span><span>NN</span><span></span>
+              <div className="mb-2">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs text-gray-400">Columns</span>
+                  <button onClick={addCol} className="text-xs text-blue-500 hover:text-blue-400 flex items-center gap-1">
+                    <Plus size={10} /> Add Column
+                  </button>
                 </div>
-                {tableCols.map((col, idx) => (
-                  <div key={idx} className="grid grid-cols-[1fr_1fr_auto_auto_auto] gap-2 items-center">
-                    <input
-                      className={inputCls}
-                      placeholder="column_name"
-                      value={col.name}
-                      onChange={e => updateCol(idx, "name", e.target.value)}
-                    />
-                    <input
-                      className={inputCls}
-                      placeholder="INTEGER"
-                      value={col.type}
-                      onChange={e => updateCol(idx, "type", e.target.value)}
-                    />
-                    <input
-                      type="checkbox"
-                      checked={col.pk}
-                      onChange={e => updateCol(idx, "pk", e.target.checked)}
-                      className="w-4 h-4 accent-blue-500"
-                    />
-                    <input
-                      type="checkbox"
-                      checked={col.notNull}
-                      disabled={col.pk}
-                      onChange={e => updateCol(idx, "notNull", e.target.checked)}
-                      className="w-4 h-4 accent-blue-500 disabled:opacity-40"
-                    />
-                    <button onClick={() => removeCol(idx)} disabled={tableCols.length === 1} className="text-gray-400 hover:text-red-500 disabled:opacity-30">
-                      <X size={12} />
-                    </button>
+
+                <div className="space-y-1">
+                  {/* Header */}
+                  <div className="grid grid-cols-[1fr_1fr_auto_auto_auto] gap-2 text-xs text-gray-400 px-1">
+                    <span>Name</span><span>Type</span><span>PK</span><span>NN</span><span></span>
                   </div>
-                ))}
+                  {tableCols.map((col, idx) => (
+                    <div key={idx} className="grid grid-cols-[1fr_1fr_auto_auto_auto] gap-2 items-center">
+                      <input
+                        className={inputCls}
+                        placeholder="column_name"
+                        value={col.name}
+                        onChange={e => updateCol(idx, "name", e.target.value)}
+                      />
+                      <input
+                        className={inputCls}
+                        placeholder="INTEGER"
+                        value={col.type}
+                        onChange={e => updateCol(idx, "type", e.target.value)}
+                      />
+                      <input
+                        type="checkbox"
+                        checked={col.pk}
+                        onChange={e => updateCol(idx, "pk", e.target.checked)}
+                        className="w-4 h-4 accent-blue-500"
+                      />
+                      <input
+                        type="checkbox"
+                        checked={col.notNull}
+                        disabled={col.pk}
+                        onChange={e => updateCol(idx, "notNull", e.target.checked)}
+                        className="w-4 h-4 accent-blue-500 disabled:opacity-40"
+                      />
+                      <button onClick={() => removeCol(idx)} disabled={tableCols.length === 1} className="text-gray-400 hover:text-red-500 disabled:opacity-30">
+                        <X size={12} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
               </div>
+
+              <details className="mb-1">
+                <summary className="text-xs text-gray-400 cursor-pointer">Preview SQL</summary>
+                <pre className="mt-1 p-2 bg-gray-100 dark:bg-gray-800 rounded text-xs text-gray-700 dark:text-gray-300 overflow-x-auto">{buildCreateTableSql()}</pre>
+              </details>
             </div>
 
-            <details className="mb-3">
-              <summary className="text-xs text-gray-400 cursor-pointer">Preview SQL</summary>
-              <pre className="mt-1 p-2 bg-gray-100 dark:bg-gray-800 rounded text-xs text-gray-700 dark:text-gray-300 overflow-x-auto">{buildCreateTableSql()}</pre>
-            </details>
-
-            <div className="flex gap-2 justify-end">
+            <div className="flex gap-2 justify-end p-4 border-t border-gray-200 dark:border-gray-700 flex-shrink-0">
               <button className="px-3 py-1.5 text-sm bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg text-gray-700 dark:text-gray-200" onClick={() => setShowCreateTable(false)}>Cancel</button>
               <button
                 disabled={!newTableName.trim() || tableCols.some(c => !c.name.trim()) || creatingTable}

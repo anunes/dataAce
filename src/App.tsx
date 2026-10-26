@@ -407,7 +407,8 @@ export default function App() {
   const handleCreateTable = useCallback(async (profileId: string, sql: string) => {
     const session = sessions[profileId];
     if (!session) return;
-    await invoke("create_table", { connId: session.connId, sql });
+    const result = await invoke<{ error?: string }>("create_table", { connId: session.connId, sql });
+    if (result?.error) throw new Error(result.error);
     await handleRefresh(profileId);
   }, [sessions, handleRefresh]);
 
