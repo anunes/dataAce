@@ -373,7 +373,7 @@ export default function Sidebar({
       {showCreateTable && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
           <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl w-[560px] max-h-[80vh] flex flex-col shadow-2xl">
-            <div className="p-5 overflow-y-auto flex-1">
+            <div className="p-5 overflow-y-auto flex-1 min-h-0">
               <h3 className="font-semibold mb-3 text-gray-800 dark:text-gray-100">New Table{selectedDb ? ` in ${selectedDb}` : ""}</h3>
 
               <div className="mb-3">

@@ -11,7 +11,7 @@ export default function AboutModal({ onClose }: Props) {
   const [version, setVersion] = useState("");
 
   useEffect(() => {
-    getVersion().then(setVersion).catch(() => setVersion("1.0.4"));
+    getVersion().then(setVersion).catch(() => setVersion("1.0.5"));
   }, []);
 
   return (
