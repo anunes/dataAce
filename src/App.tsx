@@ -62,6 +62,7 @@ async function invokeConnect(profile: ConnectionProfile): Promise<string> {
       sshUser: profile.ssh?.user ?? "",
       sshPassword: profile.ssh?.password ?? "",
       requireSsl: profile.requireSsl ?? false,
+      skipSslVerify: profile.skipSslVerify ?? false,
     });
   }
   if (profile.type === "postgres") {
@@ -430,7 +431,7 @@ export default function App() {
         color: "green",
         filePath,
         host: "", port: 0, username: "", password: "",
-        database: "", serviceName: "", ssh: null, requireSsl: false,
+        database: "", serviceName: "", ssh: null, requireSsl: false, skipSslVerify: false,
       };
       setPendingSqlite({ profile, connId, databases, firstDb, tables });
     } catch (e) {
@@ -578,13 +579,9 @@ export default function App() {
   }, []);
 
   const testConnection = useCallback(async (profile: ConnectionProfile): Promise<boolean> => {
-    try {
-      const connId = await invokeConnect(profile);
-      await invoke("disconnect", { connId });
-      return true;
-    } catch {
-      return false;
-    }
+    const connId = await invokeConnect(profile);
+    await invoke("disconnect", { connId });
+    return true;
   }, []);
 
   const selectedProfile = profiles.find(p => p.id === selectedProfileId) ?? null;

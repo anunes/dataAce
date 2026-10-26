@@ -26,6 +26,7 @@ export interface ConnectionProfile {
   ssh: SshConfig | null;
   // SSL
   requireSsl: boolean;
+  skipSslVerify: boolean;
 }
 
 export interface ColumnDef {

@@ -57,12 +57,39 @@ pub async fn create_ssh_tunnel(
     .stdout(std::process::Stdio::null())
     .stderr(std::process::Stdio::null());
 
-    let child = cmd
+    let mut child = cmd
         .spawn()
-        .map_err(|e| format!("Failed to spawn ssh: {}. Make sure ssh is installed.", e))?;
+        .map_err(|e| format!("Failed to spawn ssh: {}. Make sure ssh (and sshpass for password auth) is installed.", e))?;
 
-    // Give the tunnel a moment to establish
-    tokio::time::sleep(std::time::Duration::from_millis(800)).await;
+    // Poll the local port until the tunnel is accepting connections (up to 10 s).
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    loop {
+        // If the SSH process exited early, it failed.
+        match child.try_wait() {
+            Ok(Some(status)) => {
+                return Err(format!(
+                    "SSH process exited unexpectedly ({}). Check host, credentials, and that sshpass is installed for password auth.",
+                    status
+                ));
+            }
+            Ok(None) => {} // still running
+            Err(e) => return Err(format!("Failed to check ssh process: {}", e)),
+        }
+
+        if tokio::net::TcpStream::connect(format!("127.0.0.1:{}", local_port))
+            .await
+            .is_ok()
+        {
+            break;
+        }
+
+        if std::time::Instant::now() >= deadline {
+            let _ = child.start_kill();
+            return Err("SSH tunnel did not become ready within 10 seconds. Check SSH host, port, and credentials.".to_string());
+        }
+
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+    }
 
     Ok(SshTunnel {
         local_port,

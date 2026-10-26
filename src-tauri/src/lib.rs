@@ -51,7 +51,9 @@ async fn connect_mysql(
     ssh_user: String,
     ssh_password: String,
     require_ssl: bool,
+    skip_ssl_verify: bool,
 ) -> Result<String, String> {
+    let id = Uuid::new_v4().to_string();
     let (actual_host, actual_port) = if !ssh_host.is_empty() {
         let tunnel = db::ssh::create_ssh_tunnel(
             ssh_host,
@@ -63,7 +65,6 @@ async fn connect_mysql(
         )
         .await?;
         let lp = tunnel.local_port;
-        let id = Uuid::new_v4().to_string();
         state.tunnels.lock().await.insert(id.clone(), tunnel);
         ("127.0.0.1".to_string(), lp)
     } else {
@@ -71,8 +72,7 @@ async fn connect_mysql(
     };
 
     let db = if database.is_empty() { None } else { Some(database.as_str()) };
-    let conn = MysqlConn::new(&actual_host, actual_port, &username, &password, db, require_ssl).await?;
-    let id = Uuid::new_v4().to_string();
+    let conn = MysqlConn::new(&actual_host, actual_port, &username, &password, db, require_ssl, skip_ssl_verify).await?;
     state
         .connections
         .lock()
@@ -95,6 +95,7 @@ async fn connect_postgres(
     ssh_user: String,
     ssh_password: String,
 ) -> Result<String, String> {
+    let id = Uuid::new_v4().to_string();
     let (actual_host, actual_port) = if !ssh_host.is_empty() {
         let tunnel = db::ssh::create_ssh_tunnel(
             ssh_host,
@@ -106,7 +107,6 @@ async fn connect_postgres(
         )
         .await?;
         let lp = tunnel.local_port;
-        let id = Uuid::new_v4().to_string();
         state.tunnels.lock().await.insert(id.clone(), tunnel);
         ("127.0.0.1".to_string(), lp)
     } else {
@@ -114,7 +114,6 @@ async fn connect_postgres(
     };
 
     let conn = PostgresConn::new(&actual_host, actual_port, &username, &password, &database).await?;
-    let id = Uuid::new_v4().to_string();
     state
         .connections
         .lock()

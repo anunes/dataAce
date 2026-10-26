@@ -37,6 +37,7 @@ impl MysqlConn {
         pass: &str,
         db: Option<&str>,
         require_ssl: bool,
+        skip_ssl_verify: bool,
     ) -> Result<Self, String> {
         let mut builder = OptsBuilder::default()
             .ip_or_hostname(host)
@@ -47,7 +48,10 @@ impl MysqlConn {
             builder = builder.db_name(Some(d.to_string()));
         }
         if require_ssl {
-            builder = builder.ssl_opts(SslOpts::default());
+            let ssl_opts = SslOpts::default()
+                .with_danger_accept_invalid_certs(skip_ssl_verify)
+                .with_danger_skip_domain_validation(skip_ssl_verify);
+            builder = builder.ssl_opts(ssl_opts);
         }
         let opts = Opts::from(builder);
         let pool = Pool::new(opts);
