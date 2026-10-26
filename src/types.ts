@@ -24,6 +24,8 @@ export interface ConnectionProfile {
   serviceName: string;
   // SSH tunnel (optional)
   ssh: SshConfig | null;
+  // SSL
+  requireSsl: boolean;
 }
 
 export interface ColumnDef {

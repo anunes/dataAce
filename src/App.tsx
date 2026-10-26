@@ -57,6 +57,11 @@ async function invokeConnect(profile: ConnectionProfile): Promise<string> {
       username: profile.username,
       password: profile.password,
       database: profile.database,
+      sshHost: profile.ssh?.host ?? "",
+      sshPort: profile.ssh?.port ?? 0,
+      sshUser: profile.ssh?.user ?? "",
+      sshPassword: profile.ssh?.password ?? "",
+      requireSsl: profile.requireSsl ?? false,
     });
   }
   if (profile.type === "postgres") {

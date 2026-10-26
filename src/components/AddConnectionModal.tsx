@@ -27,6 +27,7 @@ function defaultProfile(): ConnectionProfile {
     database: "",
     serviceName: "",
     ssh: null,
+    requireSsl: false,
   };
 }
 
@@ -270,6 +271,19 @@ export default function AddConnectionModal({ profile, onSave, onClose, onTestCon
                     </div>
                   )}
                 </div>
+              )}
+
+              {/* Require SSL (mysql only) */}
+              {form.type === "mysql" && (
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={form.requireSsl ?? false}
+                    onChange={e => set("requireSsl", e.target.checked)}
+                    className="w-4 h-4 rounded accent-blue-500"
+                  />
+                  <span className="text-xs text-gray-300">Require SSL</span>
+                </label>
               )}
             </>
           )}

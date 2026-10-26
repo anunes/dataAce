@@ -45,9 +45,33 @@ async fn connect_mysql(
     username: String,
     password: String,
     database: String,
+    // SSH tunnel fields (empty = no tunnel)
+    ssh_host: String,
+    ssh_port: u16,
+    ssh_user: String,
+    ssh_password: String,
+    require_ssl: bool,
 ) -> Result<String, String> {
+    let (actual_host, actual_port) = if !ssh_host.is_empty() {
+        let tunnel = db::ssh::create_ssh_tunnel(
+            ssh_host,
+            if ssh_port == 0 { 22 } else { ssh_port },
+            ssh_user,
+            ssh_password,
+            host.clone(),
+            port,
+        )
+        .await?;
+        let lp = tunnel.local_port;
+        let id = Uuid::new_v4().to_string();
+        state.tunnels.lock().await.insert(id.clone(), tunnel);
+        ("127.0.0.1".to_string(), lp)
+    } else {
+        (host, port)
+    };
+
     let db = if database.is_empty() { None } else { Some(database.as_str()) };
-    let conn = MysqlConn::new(&host, port, &username, &password, db).await?;
+    let conn = MysqlConn::new(&actual_host, actual_port, &username, &password, db, require_ssl).await?;
     let id = Uuid::new_v4().to_string();
     state
         .connections

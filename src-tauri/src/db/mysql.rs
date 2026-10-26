@@ -1,6 +1,6 @@
 use mysql_async::consts::ColumnFlags;
 use mysql_async::prelude::*;
-use mysql_async::{Opts, OptsBuilder, Pool, Row, Value};
+use mysql_async::{Opts, OptsBuilder, Pool, Row, SslOpts, Value};
 use std::collections::HashMap;
 use std::time::Instant;
 
@@ -36,6 +36,7 @@ impl MysqlConn {
         user: &str,
         pass: &str,
         db: Option<&str>,
+        require_ssl: bool,
     ) -> Result<Self, String> {
         let mut builder = OptsBuilder::default()
             .ip_or_hostname(host)
@@ -44,6 +45,9 @@ impl MysqlConn {
             .pass(Some(pass.to_string()));
         if let Some(d) = db {
             builder = builder.db_name(Some(d.to_string()));
+        }
+        if require_ssl {
+            builder = builder.ssl_opts(SslOpts::default());
         }
         let opts = Opts::from(builder);
         let pool = Pool::new(opts);
