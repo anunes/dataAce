@@ -72,7 +72,7 @@ export default function CreateDatabaseWizard({ onClose, onCreated }: Props) {
           color: "green",
           filePath: path,
           host: "", port: 0, username: "", password: "",
-          database: "", serviceName: "", ssh: null,
+          database: "", serviceName: "", ssh: null, requireSsl: false,
         };
         onCreated(profile, id, displayName);
         return;
@@ -80,7 +80,7 @@ export default function CreateDatabaseWizard({ onClose, onCreated }: Props) {
 
       let id: string;
       if (dbType === "mysql") {
-        id = await invoke<string>("connect_mysql", { host, port, username, password, database: "" });
+        id = await invoke<string>("connect_mysql", { host, port, username, password, database: "", sshHost: "", sshPort: 0, sshUser: "", sshPassword: "", requireSsl: false });
       } else if (dbType === "postgres") {
         id = await invoke<string>("connect_postgres", {
           host, port, username, password, database: "",
@@ -118,7 +118,7 @@ export default function CreateDatabaseWizard({ onClose, onCreated }: Props) {
         filePath: "",
         host, port, username, password, database: dbName,
         serviceName: dbType === "oracle" ? serviceName : "",
-        ssh: null,
+        ssh: null, requireSsl: false,
       };
       onCreated(profile, connId, dbName);
     } catch (e) {

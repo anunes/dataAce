@@ -430,7 +430,7 @@ export default function App() {
         color: "green",
         filePath,
         host: "", port: 0, username: "", password: "",
-        database: "", serviceName: "", ssh: null,
+        database: "", serviceName: "", ssh: null, requireSsl: false,
       };
       setPendingSqlite({ profile, connId, databases, firstDb, tables });
     } catch (e) {
