@@ -14,3 +14,46 @@ input:not([type="checkbox"]):not([type="radio"]):not([type="number"]) {
 
 .cm-editor { height: 100%; }
 .cm-scroller { overflow: auto; }
+
+/* Keep the dialog independent of sidebar clipping and zero-basis flex sizing. */
+.table-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.table-modal-dialog {
+  display: flex;
+  flex-direction: column;
+  width: 560px;
+  max-width: 100%;
+  max-height: 80vh;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.table-modal-body {
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.table-modal-footer {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.table-modal-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 24px 24px 16px;
+  align-items: center;
+  gap: 8px;
+}

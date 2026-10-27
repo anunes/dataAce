@@ -83,15 +83,10 @@ impl PostgresConn {
         })
     }
 
-    pub async fn execute(&self, sql: &str, database: Option<&str>) -> Result<QueryResult, String> {
+    pub async fn execute(&self, sql: &str, _database: Option<&str>) -> Result<QueryResult, String> {
         let start = Instant::now();
-
-        if let Some(db) = database {
-            let set_sql = format!("SET search_path TO \"{}\"", db.replace('"', "\"\""));
-            if let Err(e) = self.client.execute(set_sql.as_str(), &[]).await {
-                return Ok(QueryResult::from_error(e.to_string()));
-            }
-        }
+        // A PostgreSQL connection is bound to one database. The UI reconnects
+        // when that database changes; its name must not replace search_path.
 
         let upper = sql.trim().to_uppercase();
         let is_query = upper.starts_with("SELECT")

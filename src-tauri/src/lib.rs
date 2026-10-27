@@ -836,14 +836,27 @@ async fn create_table(
     state: State<'_, AppState>,
     conn_id: String,
     sql: String,
+    database: Option<String>,
 ) -> Result<QueryResult, String> {
-    let map = state.connections.lock().await;
-    match map.get(&conn_id).ok_or("Connection not found")? {
-        DbConnection::Sqlite(c) => c.lock().await.execute(&sql, None),
-        DbConnection::Mysql(c) => c.lock().await.execute(&sql, None).await,
-        DbConnection::Postgres(c) => c.lock().await.execute(&sql, None).await,
-        DbConnection::Oracle(c) => c.lock().await.execute(&sql, None).await,
-        DbConnection::Mssql(c) => c.lock().await.execute(&sql, None).await,
+    create_table_with_database(&state.connections, &conn_id, &sql, database.as_deref()).await
+}
+
+async fn create_table_with_database(
+    connections: &ConnectionMap,
+    conn_id: &str,
+    sql: &str,
+    database: Option<&str>,
+) -> Result<QueryResult, String> {
+    let db = database.filter(|name| !name.is_empty());
+    let map = connections.lock().await;
+    match map.get(conn_id).ok_or("Connection not found")? {
+        DbConnection::Sqlite(c) => c.lock().await.execute(sql, None),
+        DbConnection::Mysql(c) => c.lock().await.execute(sql, db).await,
+        // PostgreSQL's connection already selects its database; a database
+        // name is not a schema/search_path override.
+        DbConnection::Postgres(c) => c.lock().await.execute(sql, None).await,
+        DbConnection::Oracle(c) => c.lock().await.execute(sql, None).await,
+        DbConnection::Mssql(c) => c.lock().await.execute(sql, db).await,
     }
 }
 
@@ -1118,4 +1131,159 @@ pub fn run() {
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn create_table_preserves_sqlite_database_and_errors() {
+        let connections = db::new_connection_map();
+        let sqlite = Arc::new(Mutex::new(SqliteConn::new(":memory:").unwrap()));
+        connections.lock().await.insert(
+            "sqlite".to_string(),
+            DbConnection::Sqlite(Arc::clone(&sqlite)),
+        );
+
+        let sql = "CREATE TABLE \"MixedCase\" (\"select\" INTEGER PRIMARY KEY)";
+        let result = create_table_with_database(&connections, "sqlite", sql, Some("memory"))
+            .await
+            .unwrap();
+        assert!(result.error.is_none());
+        assert!(sqlite
+            .lock()
+            .await
+            .list_tables(None)
+            .unwrap()
+            .iter()
+            .any(|table| table.name == "MixedCase"));
+
+        let duplicate = create_table_with_database(&connections, "sqlite", sql, Some("memory"))
+            .await
+            .unwrap();
+        assert!(duplicate.error.is_some());
+        let missing = create_table_with_database(&connections, "missing", sql, None).await;
+        assert_eq!(missing.err().as_deref(), Some("Connection not found"));
+    }
+
+    #[tokio::test]
+    #[ignore = "requires a disposable MySQL server; set DATAACE_TEST_MYSQL_PORT"]
+    async fn create_table_uses_selected_mysql_database() {
+        let port: u16 = std::env::var("DATAACE_TEST_MYSQL_PORT")
+            .expect("set DATAACE_TEST_MYSQL_PORT to an isolated MySQL server port")
+            .parse()
+            .unwrap();
+        let admin = MysqlConn::new("127.0.0.1", port, "root", "", None, false, false)
+            .await
+            .unwrap();
+        let suffix = Uuid::new_v4().simple().to_string();
+        let default_db = format!("dataace_default_{}", suffix);
+        let selected_db = format!("dataace_selected_{}", suffix);
+        for database in [&default_db, &selected_db] {
+            let result = admin
+                .execute(&format!("CREATE DATABASE `{}`", database), None)
+                .await
+                .unwrap();
+            assert!(result.error.is_none(), "{:?}", result.error);
+        }
+
+        let connections = db::new_connection_map();
+        for (id, default) in [("default", Some(default_db.as_str())), ("no_default", None)] {
+            let conn = MysqlConn::new("127.0.0.1", port, "root", "", default, false, false)
+                .await
+                .unwrap();
+            connections.lock().await.insert(
+                id.to_string(),
+                DbConnection::Mysql(Arc::new(Mutex::new(conn))),
+            );
+            let sql = format!("CREATE TABLE `{}` (`id` INTEGER PRIMARY KEY)", id);
+            let result = create_table_with_database(&connections, id, &sql, Some(&selected_db))
+                .await
+                .unwrap();
+            assert!(result.error.is_none(), "{:?}", result.error);
+        }
+
+        let selected = admin.list_tables(Some(&selected_db)).await.unwrap();
+        assert_eq!(selected.len(), 2);
+        assert!(selected.iter().any(|table| table.name == "default"));
+        assert!(selected.iter().any(|table| table.name == "no_default"));
+        assert!(admin
+            .list_tables(Some(&default_db))
+            .await
+            .unwrap()
+            .is_empty());
+
+        for database in [&default_db, &selected_db] {
+            let result = admin
+                .execute(&format!("DROP DATABASE `{}`", database), None)
+                .await
+                .unwrap();
+            assert!(result.error.is_none(), "{:?}", result.error);
+        }
+    }
+
+    #[tokio::test]
+    #[ignore = "requires a disposable PostgreSQL server; set DATAACE_TEST_POSTGRES_PORT"]
+    async fn create_table_keeps_postgres_database_separate_from_schema() {
+        let port: u16 = std::env::var("DATAACE_TEST_POSTGRES_PORT")
+            .expect("set DATAACE_TEST_POSTGRES_PORT to an isolated PostgreSQL server port")
+            .parse()
+            .unwrap();
+        let conn = Arc::new(Mutex::new(
+            PostgresConn::new(
+                "127.0.0.1",
+                port,
+                "dataace_test",
+                "dataace_test",
+                "postgres",
+            )
+            .await
+            .unwrap(),
+        ));
+        let connections = db::new_connection_map();
+        connections.lock().await.insert(
+            "postgres".to_string(),
+            DbConnection::Postgres(Arc::clone(&conn)),
+        );
+
+        // Browsing or running a query before creating a table must not set the
+        // database name as the connection's schema search path.
+        let query = conn
+            .lock()
+            .await
+            .execute(
+                "SELECT current_database()::text, current_schema()::text",
+                Some("postgres"),
+            )
+            .await
+            .unwrap();
+        assert!(query.error.is_none(), "{:?}", query.error);
+        assert_eq!(
+            query.rows,
+            vec![vec![Some("postgres".into()), Some("public".into())]]
+        );
+
+        let table = format!("dataace_{}", Uuid::new_v4().simple());
+        let sql = format!("CREATE TABLE \"{}\" (\"id\" INTEGER PRIMARY KEY)", table);
+        let result = create_table_with_database(&connections, "postgres", &sql, Some("postgres"))
+            .await
+            .unwrap();
+        assert!(result.error.is_none(), "{:?}", result.error);
+        assert!(conn
+            .lock()
+            .await
+            .list_tables(Some("postgres"))
+            .await
+            .unwrap()
+            .iter()
+            .any(|entry| entry.name == table));
+        let cleanup = conn
+            .lock()
+            .await
+            .execute(&format!("DROP TABLE \"public\".\"{}\"", table), None)
+            .await
+            .unwrap();
+        assert!(cleanup.error.is_none(), "{:?}", cleanup.error);
+    }
 }
