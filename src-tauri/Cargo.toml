@@ -21,11 +21,13 @@ tauri-plugin-fs = "2"
 tauri-plugin-shell = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-rusqlite = { version = "0.32", features = ["bundled"] }
+rusqlite = { version = "0.32", features = ["bundled", "backup"] }
 mysql_async = "0.34"
 tokio = { version = "1", features = ["full"] }
 uuid = { version = "1", features = ["v4"] }
-tokio-postgres = "0.7"
+tokio-postgres = { version = "0.7", features = ["with-chrono-0_4", "with-serde_json-1", "with-uuid-1"] }
+bytes = "1"
+chrono = { version = "0.4", default-features = false, features = ["std"] }
 async-trait = "0.1"
 oracle = { version = "0.6", optional = true }
 tiberius = { version = "0.13", features = ["chrono"] }

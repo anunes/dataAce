@@ -1,14 +1,28 @@
-import { useState, useRef, useEffect, ReactNode } from "react";
+import { useState, useRef, useEffect, ReactNode, DragEvent } from "react";
 import { ConnectionProfile } from "../types";
-import { Plus, Loader2, Circle, FolderOpen, ArrowRightLeft, Info, Users } from "lucide-react";
+import { Plus, Loader2, Circle, FolderOpen, Grid3x3, ArrowRightLeft, Info, Users } from "lucide-react";
 
 const COLOR_MAP: Record<string, string> = {
   blue: "#3b82f6", green: "#22c55e", red: "#ef4444",
   orange: "#f97316", purple: "#a855f7", gray: "#6b7280",
 };
 
+const CONNECTION_DRAG_TYPE = "application/x-dataace-connection";
+const MOVE_TYPES = new Set(["sqlite", "mysql", "postgres"]);
+const SYSTEM_DATABASES: Record<string, string[]> = {
+  mysql: ["information_schema", "mysql", "performance_schema", "sys"],
+  postgres: ["template0", "template1"],
+};
+
+function isSingleDatabaseProfile(profile: ConnectionProfile, databaseCounts: Record<string, number>): boolean {
+  const database = profile.database.trim();
+  if (SYSTEM_DATABASES[profile.type]?.includes(database.toLowerCase())) return false;
+  return profile.type === "sqlite" || !!database || databaseCounts[profile.id] === 1;
+}
+
 interface Props {
   profiles: ConnectionProfile[];
+  databaseCounts: Record<string, number>;
   activeSessions: Set<string>;
   selectedId: string | null;
   connectingId: string | null;
@@ -19,6 +33,8 @@ interface Props {
   onDuplicate: (profile: ConnectionProfile) => void;
   onDisconnect: (id: string) => void;
   onOpenSqlite: () => void;
+  onNewTable: () => void;
+  onMoveDatabase: (sourceProfileId: string, targetProfileId?: string) => void;
   themeIcon: ReactNode;
   onCycleTheme: () => void;
   onMigrate: () => void;
@@ -34,17 +50,24 @@ interface ContextMenu {
 }
 
 export default function ConnectionsPanel({
-  profiles, activeSessions, selectedId, connectingId,
-  onSelect, onAdd, onEdit, onDelete, onDuplicate, onDisconnect, onOpenSqlite,
-  themeIcon, onCycleTheme, onMigrate, onAbout, onManageUsers, hasMysqlSession,
+  profiles, databaseCounts, activeSessions, selectedId, connectingId,
+  onSelect, onAdd, onEdit, onDelete, onDuplicate, onDisconnect, onOpenSqlite, onNewTable,
+  onMoveDatabase, themeIcon, onCycleTheme, onMigrate, onAbout, onManageUsers, hasMysqlSession,
 }: Props) {
   const [contextMenu, setContextMenu] = useState<ContextMenu | null>(null);
+  const [draggedProfileId, setDraggedProfileId] = useState<string | null>(null);
+  const [dropTargetId, setDropTargetId] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handler = () => setContextMenu(null);
+    const handleKeyDown = (event: KeyboardEvent) => { if (event.key === "Escape") setContextMenu(null); };
     window.addEventListener("click", handler);
-    return () => window.removeEventListener("click", handler);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("click", handler);
+      window.removeEventListener("keydown", handleKeyDown);
+    };
   }, []);
 
   const sqliteProfiles  = profiles.filter(p => p.type === "sqlite");
@@ -52,6 +75,26 @@ export default function ConnectionsPanel({
   const pgProfiles      = profiles.filter(p => p.type === "postgres");
   const oracleProfiles  = profiles.filter(p => p.type === "oracle");
   const mssqlProfiles   = profiles.filter(p => p.type === "mssql");
+
+  function canMoveProfile(profile: ConnectionProfile): boolean {
+    return MOVE_TYPES.has(profile.type) && isSingleDatabaseProfile(profile, databaseCounts);
+  }
+
+  function compatibleTarget(source: ConnectionProfile, target: ConnectionProfile): boolean {
+    return canMoveProfile(source) && source.id !== target.id && source.type === target.type;
+  }
+
+  function dragSource(event: DragEvent<HTMLDivElement>, allowProtectedData: boolean): ConnectionProfile | undefined {
+    if (!Array.from(event.dataTransfer.types).includes(CONNECTION_DRAG_TYPE)) return undefined;
+    const id = event.dataTransfer.getData(CONNECTION_DRAG_TYPE) || (allowProtectedData ? draggedProfileId : null);
+    return profiles.find(profile => profile.id === id);
+  }
+
+  function moveDisabledReason(profile: ConnectionProfile): string | undefined {
+    if (!MOVE_TYPES.has(profile.type)) return "Database moves are supported for SQLite, MySQL, and PostgreSQL.";
+    if (!profiles.some(target => compatibleTarget(profile, target))) return "Add another connection for the same database engine to move this database.";
+    return undefined;
+  }
 
   function subtitle(p: ConnectionProfile) {
     if (p.type === "sqlite") {
@@ -74,16 +117,71 @@ export default function ConnectionsPanel({
     const isConnecting = connectingId === p.id;
     const isSelected   = selectedId === p.id;
     const typeBg = TYPE_BG[p.type] ?? "hover:bg-gray-100 dark:hover:bg-gray-800";
+    const canDrag = canMoveProfile(p) && profiles.some(target => compatibleTarget(p, target));
+    const source = profiles.find(profile => profile.id === draggedProfileId);
+    const acceptsDrop = !!source && compatibleTarget(source, p);
+    const highlighted = dropTargetId === p.id && acceptsDrop;
 
     return (
       <div
         key={p.id}
-        className={`flex items-center gap-2 px-3 py-2 cursor-pointer select-none rounded mx-1 ${isSelected ? "bg-gray-200 dark:bg-gray-700" : typeBg}`}
+        role="button"
+        tabIndex={0}
+        aria-label={`${p.name} connection`}
+        aria-pressed={isSelected}
+        aria-haspopup="menu"
+        draggable={canDrag}
+        title={acceptsDrop ? `Move ${source.name}'s database to ${p.name}` : canDrag ? "Drag onto another connection to move this database" : undefined}
+        className={`flex items-center gap-2 px-3 py-2 cursor-pointer select-none rounded mx-1 ${isSelected ? "bg-gray-200 dark:bg-gray-700" : typeBg} ${highlighted ? "ring-2 ring-inset ring-blue-500 bg-blue-100 dark:bg-blue-950" : ""} ${draggedProfileId === p.id ? "opacity-50" : ""}`}
         onClick={() => onSelect(p.id)}
+        onKeyDown={event => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            onSelect(p.id);
+          } else if (event.key === "ContextMenu" || (event.shiftKey && event.key === "F10")) {
+            event.preventDefault();
+            const bounds = event.currentTarget.getBoundingClientRect();
+            setContextMenu({ x: bounds.right, y: bounds.top, profile: p });
+          }
+        }}
         onContextMenu={e => {
           e.preventDefault();
           setContextMenu({ x: e.clientX, y: e.clientY, profile: p });
         }}
+        onDragStart={event => {
+          if (!canDrag) { event.preventDefault(); return; }
+          event.dataTransfer.effectAllowed = "move";
+          event.dataTransfer.setData(CONNECTION_DRAG_TYPE, p.id);
+          setContextMenu(null);
+          setDraggedProfileId(p.id);
+        }}
+        onDragEnter={event => {
+          const dragged = dragSource(event, true);
+          if (!dragged || !compatibleTarget(dragged, p)) return;
+          event.preventDefault();
+          setDropTargetId(p.id);
+        }}
+        onDragOver={event => {
+          const dragged = dragSource(event, true);
+          if (!dragged || !compatibleTarget(dragged, p)) return;
+          event.preventDefault();
+          event.dataTransfer.dropEffect = "move";
+          setDropTargetId(p.id);
+        }}
+        onDragLeave={event => {
+          if (event.relatedTarget instanceof Node && event.currentTarget.contains(event.relatedTarget)) return;
+          setDropTargetId(previous => previous === p.id ? null : previous);
+        }}
+        onDrop={event => {
+          const dragged = dragSource(event, false);
+          setDropTargetId(null);
+          setDraggedProfileId(null);
+          if (!dragged || !compatibleTarget(dragged, p)) return;
+          event.preventDefault();
+          event.stopPropagation();
+          onMoveDatabase(dragged.id, p.id);
+        }}
+        onDragEnd={() => { setDropTargetId(null); setDraggedProfileId(null); }}
       >
         <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: COLOR_MAP[p.color] ?? "#6b7280" }} />
         <div className="flex-1 min-w-0">
@@ -101,7 +199,7 @@ export default function ConnectionsPanel({
     );
   }
 
-  function Section({ label, items }: { label: string; items: ConnectionProfile[] }) {
+  function renderSection(label: string, items: ConnectionProfile[]) {
     if (items.length === 0) return null;
     return (
       <div className="mt-2">
@@ -116,6 +214,13 @@ export default function ConnectionsPanel({
       <div className="flex items-center justify-between px-3 py-3 border-b border-gray-200 dark:border-gray-800">
         <span className="font-bold text-sm text-gray-800 dark:text-gray-200">DataAce</span>
         <div className="flex items-center gap-1">
+          <button
+            onClick={onNewTable}
+            className="w-6 h-6 flex items-center justify-center rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-100"
+            title="New table"
+          >
+            <Grid3x3 size={14} />
+          </button>
           <button
             onClick={onOpenSqlite}
             className="w-6 h-6 flex items-center justify-center rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-100"
@@ -134,11 +239,11 @@ export default function ConnectionsPanel({
       </div>
 
       <div className="flex-1 overflow-y-auto py-1">
-        <Section label="SQLite"      items={sqliteProfiles} />
-        <Section label="MySQL"       items={mysqlProfiles} />
-        <Section label="PostgreSQL"  items={pgProfiles} />
-        <Section label="Oracle"      items={oracleProfiles} />
-        <Section label="SQL Server"  items={mssqlProfiles} />
+        {renderSection("SQLite", sqliteProfiles)}
+        {renderSection("MySQL", mysqlProfiles)}
+        {renderSection("PostgreSQL", pgProfiles)}
+        {renderSection("Oracle", oracleProfiles)}
+        {renderSection("SQL Server", mssqlProfiles)}
         {profiles.length === 0 && (
           <div className="px-3 py-4 text-xs text-gray-400 text-center">
             No connections yet.<br />
@@ -182,6 +287,8 @@ export default function ConnectionsPanel({
       {contextMenu && (
         <div
           ref={menuRef}
+          role="menu"
+          aria-label={`${contextMenu.profile.name} connection actions`}
           className="fixed z-50 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded shadow-lg py-1 min-w-40"
           style={{ left: contextMenu.x, top: contextMenu.y }}
           onClick={e => e.stopPropagation()}
@@ -193,6 +300,14 @@ export default function ConnectionsPanel({
           )}
           <MenuItem label="Edit"      onClick={() => { onEdit(contextMenu.profile); setContextMenu(null); }} />
           <MenuItem label="Duplicate" onClick={() => { onDuplicate(contextMenu.profile); setContextMenu(null); }} />
+          {isSingleDatabaseProfile(contextMenu.profile, databaseCounts) && (
+            <MenuItem
+              label="Move database to connection…"
+              disabled={!!moveDisabledReason(contextMenu.profile)}
+              title={moveDisabledReason(contextMenu.profile)}
+              onClick={() => { onMoveDatabase(contextMenu.profile.id); setContextMenu(null); }}
+            />
+          )}
           <div className="border-t border-gray-200 dark:border-gray-700 my-1" />
           <MenuItem label="Delete" danger onClick={() => { onDelete(contextMenu.profile.id); setContextMenu(null); }} />
         </div>
@@ -201,10 +316,13 @@ export default function ConnectionsPanel({
   );
 }
 
-function MenuItem({ label, onClick, danger }: { label: string; onClick: () => void; danger?: boolean }) {
+function MenuItem({ label, onClick, danger, disabled, title }: { label: string; onClick: () => void; danger?: boolean; disabled?: boolean; title?: string }) {
   return (
     <button
-      className={`w-full text-left px-3 py-1.5 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 ${danger ? "text-red-500" : "text-gray-700 dark:text-gray-200"}`}
+      role="menuitem"
+      disabled={disabled}
+      title={title}
+      className={`w-full text-left px-3 py-1.5 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed ${danger ? "text-red-500" : "text-gray-700 dark:text-gray-200"}`}
       onClick={onClick}
     >
       {label}

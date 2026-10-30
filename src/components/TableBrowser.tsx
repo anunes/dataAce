@@ -712,14 +712,14 @@ function EditableDataGrid({
   );
 }
 
-// Re-export the read-only DataGrid for use in QueryEditor results
+// Query results can include identically named columns from joined tables.
 export function DataGrid({ columns, rows }: { columns: ColumnDef[]; rows: (string | null)[][] }) {
   return (
     <table className="w-full text-xs border-collapse" style={{ minWidth: "max-content" }}>
       <thead className="sticky top-0 bg-gray-50 dark:bg-gray-950 z-10">
         <tr>
-          {columns.map(col => (
-            <th key={col.name} className="text-left px-3 py-2 border-b border-gray-200 dark:border-gray-800 font-medium whitespace-nowrap text-gray-700 dark:text-gray-200">
+          {columns.map((col, index) => (
+            <th key={index} className="text-left px-3 py-2 border-b border-gray-200 dark:border-gray-800 font-medium whitespace-nowrap text-gray-700 dark:text-gray-200">
               <div className="flex items-center gap-1">
                 {col.is_primary_key && <Key size={10} className="text-orange-400" />}
                 <span>{col.name}</span>

@@ -1,5 +1,4 @@
 import { useState, useRef, useEffect } from "react";
-import { createPortal } from "react-dom";
 import { TableInfo, DbType } from "../types";
 import { RefreshCw, ChevronDown, ChevronRight, Grid3x3, Eye, EyeOff, Search, X, Plus, Database, Download } from "lucide-react";
 
@@ -23,7 +22,7 @@ interface Props {
   onDropTable: (table: string) => void;
   onDropDatabase: (db: string) => void;
   onCreateDatabase: (name: string) => Promise<void>;
-  onCreateTable: (sql: string) => Promise<void>;
+  onNewTable: () => void;
   onNewConnection: () => void;
   onExportTable: () => void;
   onExportDatabase: () => void;
@@ -44,7 +43,7 @@ interface DbContextMenu {
 export default function Sidebar({
   databases, selectedDb, tables, selectedTable, dbType,
   onSelectDb, onSelectTable, onRefresh, onDropTable, onDropDatabase,
-  onCreateDatabase, onCreateTable, onNewConnection,
+  onCreateDatabase, onNewTable, onNewConnection,
   onExportTable, onExportDatabase,
 }: Props) {
   const [search, setSearch] = useState("");
@@ -60,13 +59,6 @@ export default function Sidebar({
   const [showCreateDb, setShowCreateDb] = useState(false);
   const [newDbName, setNewDbName] = useState("");
   const [creatingDb, setCreatingDb] = useState(false);
-
-  // Create table modal
-  const [showCreateTable, setShowCreateTable] = useState(false);
-  const [newTableName, setNewTableName] = useState("");
-  const [tableCols, setTableCols] = useState([{ name: "id", type: "INTEGER", pk: true, notNull: true }]);
-  const [creatingTable, setCreatingTable] = useState(false);
-  const [createTableError, setCreateTableError] = useState<string | null>(null);
 
   useEffect(() => {
     const handler = () => { setContextMenu(null); setDbContextMenu(null); };
@@ -88,53 +80,6 @@ export default function Sidebar({
     } finally {
       setCreatingDb(false);
     }
-  }
-
-  function buildCreateTableSql(): string {
-    const db = dbType;
-    const colDefs = tableCols.map(c => {
-      let def = `  ${c.name} ${c.type}`;
-      if (c.pk) {
-        if (db === "sqlite") def += " PRIMARY KEY AUTOINCREMENT";
-        else if (db === "mysql") def += " PRIMARY KEY AUTO_INCREMENT";
-        else if (db === "postgres") return `  ${c.name} SERIAL PRIMARY KEY`;
-        else def += " PRIMARY KEY";
-      } else {
-        if (c.notNull) def += " NOT NULL";
-      }
-      return def;
-    });
-    const name = newTableName.toLowerCase();
-    const tbl = dbType === "mysql" ? `\`${name}\`` : `"${name}"`;
-    return `CREATE TABLE ${tbl} (\n${colDefs.join(",\n")}\n)`;
-  }
-
-  async function handleCreateTable() {
-    if (creatingTable || !newTableName.trim() || tableCols.length === 0 || tableCols.some(c => !c.name.trim() || !c.type.trim())) return;
-    setCreateTableError(null);
-    setCreatingTable(true);
-    try {
-      await onCreateTable(buildCreateTableSql());
-      setShowCreateTable(false);
-      setNewTableName("");
-      setTableCols([{ name: "id", type: "INTEGER", pk: true, notNull: true }]);
-    } catch (e) {
-      setCreateTableError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setCreatingTable(false);
-    }
-  }
-
-  function addCol() {
-    setTableCols(prev => [...prev, { name: "", type: "VARCHAR(255)", pk: false, notNull: false }]);
-  }
-
-  function updateCol(idx: number, field: string, value: string | boolean) {
-    setTableCols(prev => prev.map((c, i) => i === idx ? { ...c, [field]: value } : c));
-  }
-
-  function removeCol(idx: number) {
-    setTableCols(prev => prev.filter((_, i) => i !== idx));
   }
 
   const systemDbs = SYSTEM_DBS[dbType] ?? [];
@@ -204,7 +149,7 @@ export default function Sidebar({
               <div>
                 {/* New Table button */}
                 <button
-                  onClick={() => { setCreateTableError(null); setShowCreateTable(true); }}
+                  onClick={onNewTable}
                   className="w-full flex items-center gap-2 px-4 py-1 text-xs text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-blue-500"
                 >
                   <Plus size={10} />
@@ -370,105 +315,6 @@ export default function Sidebar({
             </div>
           </div>
         </div>
-      )}
-
-      {/* Create Table modal */}
-      {showCreateTable && createPortal(
-        <div className="table-modal-backdrop">
-          <form
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="create-table-title"
-            className="table-modal-dialog bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-2xl"
-            onSubmit={e => { e.preventDefault(); void handleCreateTable(); }}
-          >
-            <div className="table-modal-body p-5">
-              <h3 id="create-table-title" className="font-semibold mb-3 text-gray-800 dark:text-gray-100">New Table{selectedDb ? ` in ${selectedDb}` : ""}</h3>
-
-              <div className="mb-3">
-                <label htmlFor="create-table-name" className="text-xs text-gray-400 mb-1 block">Table Name</label>
-                <input
-                  id="create-table-name"
-                  autoFocus
-                  className={inputCls}
-                  placeholder="table_name"
-                  value={newTableName}
-                  onChange={e => setNewTableName(e.target.value)}
-                />
-              </div>
-
-              <div className="mb-2">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-xs text-gray-400">Columns</span>
-                  <button type="button" onClick={addCol} className="text-xs text-blue-500 hover:text-blue-400 flex items-center gap-1">
-                    <Plus size={10} /> Add Column
-                  </button>
-                </div>
-
-                <div className="space-y-1">
-                  {/* Header */}
-                  <div className="table-modal-columns text-xs text-gray-400">
-                    <span>Name</span><span>Type</span><span>PK</span><span>NN</span><span></span>
-                  </div>
-                  {tableCols.map((col, idx) => (
-                    <div key={idx} className="table-modal-columns">
-                      <input
-                        aria-label={`Column ${idx + 1} name`}
-                        className={inputCls}
-                        placeholder="column_name"
-                        value={col.name}
-                        onChange={e => updateCol(idx, "name", e.target.value)}
-                      />
-                      <input
-                        aria-label={`Column ${idx + 1} type`}
-                        className={inputCls}
-                        placeholder="INTEGER"
-                        value={col.type}
-                        onChange={e => updateCol(idx, "type", e.target.value)}
-                      />
-                      <input
-                        aria-label={`Column ${idx + 1} primary key`}
-                        type="checkbox"
-                        checked={col.pk}
-                        onChange={e => updateCol(idx, "pk", e.target.checked)}
-                        className="w-4 h-4 accent-blue-500"
-                      />
-                      <input
-                        aria-label={`Column ${idx + 1} not null`}
-                        type="checkbox"
-                        checked={col.notNull}
-                        disabled={col.pk}
-                        onChange={e => updateCol(idx, "notNull", e.target.checked)}
-                        className="w-4 h-4 accent-blue-500 disabled:opacity-40"
-                      />
-                      <button type="button" aria-label={`Remove column ${idx + 1}`} onClick={() => removeCol(idx)} disabled={tableCols.length === 1} className="text-gray-400 hover:text-red-500 disabled:opacity-30">
-                        <X size={12} />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <details className="mb-1">
-                <summary className="text-xs text-gray-400 cursor-pointer">Preview SQL</summary>
-                <pre className="mt-1 p-2 bg-gray-100 dark:bg-gray-800 rounded text-xs text-gray-700 dark:text-gray-300 overflow-x-auto">{buildCreateTableSql()}</pre>
-              </details>
-            </div>
-
-            <div className="table-modal-footer p-4 border-t border-gray-200 dark:border-gray-700">
-              {createTableError && <p role="alert" className="w-full text-sm text-red-600 dark:text-red-400 break-words">{createTableError}</p>}
-              <button type="button" disabled={creatingTable} className="px-3 py-1.5 text-sm bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg text-gray-700 dark:text-gray-200 disabled:opacity-50" onClick={() => setShowCreateTable(false)}>Cancel</button>
-              <button
-                type="submit"
-                disabled={!newTableName.trim() || tableCols.some(c => !c.name.trim() || !c.type.trim()) || creatingTable}
-                className="px-3 py-1.5 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg disabled:opacity-50"
-              >
-                {creatingTable ? "Creating..." : "Create Table"}
-              </button>
-            </div>
-          </form>
-        </div>,
-        document.body
       )}
     </div>
   );

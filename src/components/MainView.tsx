@@ -1,6 +1,8 @@
+import { useEffect, useState } from "react";
 import { ConnectionProfile, ActiveTab } from "../types";
 import TableBrowser from "./TableBrowser";
 import QueryEditor from "./QueryEditor";
+import VisualQueryBuilder from "./VisualQueryBuilder";
 import StructureView from "./StructureView";
 import RelationsView from "./RelationsView";
 import TriggersView from "./TriggersView";
@@ -23,12 +25,16 @@ const TABS: { id: ActiveTab; label: string }[] = [
   { id: "browse", label: "Browse" },
   { id: "structure", label: "Structure" },
   { id: "query", label: "Query" },
+  { id: "builder", label: "Query Builder" },
   { id: "relations", label: "Relations" },
   { id: "triggers", label: "Triggers" },
   { id: "info", label: "Info" },
 ];
 
 export default function MainView({ connId, profile, selectedDb, selectedTable, activeTab, onTabChange, isDark, triggerExport, onExportDone }: Props) {
+  const [builderOpened, setBuilderOpened] = useState(activeTab === "builder");
+  useEffect(() => { if (activeTab === "builder") setBuilderOpened(true); }, [activeTab]);
+
   return (
     <div className="flex-1 flex flex-col overflow-hidden bg-white dark:bg-gray-900">
       {/* Breadcrumb bar */}
@@ -88,6 +94,11 @@ export default function MainView({ connId, profile, selectedDb, selectedTable, a
         )}
         {activeTab === "query" && (
           <QueryEditor connId={connId} selectedTable={selectedTable} selectedDb={selectedDb} isDark={isDark} dbType={profile.type} />
+        )}
+        {(builderOpened || activeTab === "builder") && (
+          <div className={activeTab === "builder" ? "h-full" : "hidden"}>
+            <VisualQueryBuilder connId={connId} selectedTable={selectedTable} selectedDb={selectedDb} isDark={isDark} dbType={profile.type} />
+          </div>
         )}
         {activeTab === "relations" && (
           selectedTable && selectedDb ? (

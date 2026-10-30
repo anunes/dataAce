@@ -18,14 +18,15 @@ A cross-platform desktop database client built with Tauri, React, and Rust. Supp
 5. [Browse Tab](#browse-tab)
 6. [Structure Tab](#structure-tab)
 7. [Query Tab](#query-tab)
-8. [Relations Tab](#relations-tab)
-9. [Triggers Tab](#triggers-tab)
-10. [Info Tab](#info-tab)
-11. [Creating a Database](#creating-a-database)
-12. [Exporting Data](#exporting-data)
-13. [Migrating Data](#migrating-data)
-14. [MySQL User Manager](#mysql-user-manager)
-15. [Themes](#themes)
+8. [Query Builder](#query-builder)
+9. [Relations Tab](#relations-tab)
+10. [Triggers Tab](#triggers-tab)
+11. [Info Tab](#info-tab)
+12. [Creating a Database](#creating-a-database)
+13. [Exporting Data](#exporting-data)
+14. [Migrating Data](#migrating-data)
+15. [MySQL User Manager](#mysql-user-manager)
+16. [Themes](#themes)
 
 ---
 
@@ -105,6 +106,20 @@ Right-click any connection in the panel:
 - **Duplicate** — creates a copy of the profile
 - **Delete** — removes the profile (does not affect data)
 
+### Transferring a Database to Another Connection
+
+Right-click a connection associated with a single database and choose **Move database to connection…**, or drag it onto a connection using the same database engine. Both actions open the **Move Database** dialog; dropping a connection does not start the transfer.
+
+Choose the destination connection, review the destination database, then click **Transfer Database**. The original database and saved connection remain available as a backup. The destination connection refreshes after a successful transfer.
+
+- **MySQL / MariaDB:** transfers the database under the same name to another server where that database does not exist. Writes on the source server are blocked during export to obtain a consistent copy.
+- **PostgreSQL:** creates a new destination database; its name can be changed before transferring.
+- **SQLite:** copies the database into an empty destination SQLite connection, including binary values, indexes, views, and triggers.
+
+Server transfers use the native database export/restore utilities installed on your computer. An unavailable utility, incompatible destination, or failed restore is reported in the dialog. Existing destination databases are not overwritten.
+
+PostgreSQL objects are owned by the destination user; source grants, replication configuration, and tablespace assignments are not copied. MySQL server users and grants are not copied, and stored object DEFINER accounts must exist on the destination. When the source contains enabled MySQL events, the destination event scheduler must be disabled before transfer; plan event activation together with the source cutover.
+
 ---
 
 ## Sidebar — Databases & Tables
@@ -130,7 +145,14 @@ Click the **↻ refresh icon** in the sidebar header to reload the database list
 
 ### New Table
 
-With a database selected, click **+ New Table** inside the expanded database to open the table creation dialog. Define column names, types, primary key, and NOT NULL constraints. Preview the generated SQL before creating.
+Click **+ New Table** inside an expanded database, the table icon in the connections header, or **New Table** on the welcome screen.
+
+1. Choose an existing connection and database, or add a **New Connection**, then click **Continue**.
+2. Define column names, types, primary keys, and NOT NULL constraints. Type suggestions match the selected database engine, and custom types are supported.
+3. Optionally select **Add timestamps** to generate `created_at` and `updated_at` with `CURRENT_TIMESTAMP` defaults and automatic `updated_at` updates.
+4. Review **Preview SQL**, then click **Create Table**.
+
+**Back** and **Change connection** return to connection selection while preserving the table draft.
 
 ---
 
@@ -217,6 +239,23 @@ Click the **clock icon** to open query history (last 50 queries, persisted acros
 
 - Drag the **divider** between editor and results to resize.
 - Paginate results using the same controls as the Browse tab.
+
+---
+
+## Query Builder
+
+Select a database and open **Query Builder** to build a SELECT query visually.
+
+- Choose the source table, then add joined tables. Each table has its own alias, including when joining a table to itself.
+- Choose **INNER**, **LEFT**, **RIGHT**, **FULL**, or **CROSS** joins where supported by the selected engine. Define one or more column comparisons for each join; CROSS joins do not need an ON condition. MySQL does not support FULL joins.
+- Select output columns and optional aliases, or add **COUNT**, **SUM**, **AVG**, **MIN**, and **MAX** aggregates.
+- Add filters with typed values. Operators include comparisons, LIKE, IN, BETWEEN, and NULL checks. Combine filters with AND or OR.
+- Add **GROUP BY** columns and **ORDER BY** rules with ascending or descending direction. Selected aggregate outputs can also be sorted.
+- Review the generated SQL and its separate parameter values, then run the query. Results appear in a paginated grid with execution timing. The default row limit is 100 and can be raised to 10,000.
+
+Filter values are sent separately through prepared statements and native driver bindings. They are never inserted into generated SQL text. Identifiers are quoted and checked against loaded table metadata, and invalid joins, grouping, or parameter values are reported before execution. The SQL editor remains available in the **Query** tab for writing SQL directly.
+
+The builder draft stays available when switching tabs in the same database. Switching connections or databases starts a new draft. Parameter values are not saved in query history or local storage.
 
 ---
 

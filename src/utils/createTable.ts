@@ -1,0 +1,160 @@
+import type { DbType } from "../types";
+
+export interface TableColumn {
+  name: string;
+  type: string;
+  pk: boolean;
+  notNull: boolean;
+}
+
+export const COLUMN_TYPES: Record<DbType, string[]> = {
+  mysql: [
+    "INTEGER", "BIGINT", "SMALLINT", "TINYINT", "MEDIUMINT", "INT UNSIGNED", "BIGINT UNSIGNED",
+    "VARCHAR(255)", "CHAR(1)", "TEXT", "MEDIUMTEXT", "LONGTEXT", "DECIMAL(10,2)",
+    "FLOAT", "DOUBLE", "BOOLEAN", "DATE", "TIME", "DATETIME", "TIMESTAMP", "YEAR",
+    "JSON", "BLOB", "LONGBLOB", "BINARY(16)", "VARBINARY(255)",
+  ],
+  postgres: [
+    "INTEGER", "BIGINT", "SMALLINT", "VARCHAR(255)", "CHAR(1)", "TEXT", "NUMERIC(10,2)",
+    "REAL", "DOUBLE PRECISION", "BOOLEAN", "DATE", "TIME", "TIMESTAMP", "TIMESTAMPTZ",
+    "INTERVAL", "UUID", "JSON", "JSONB", "BYTEA", "INET", "TEXT[]",
+  ],
+  sqlite: ["INTEGER", "TEXT", "REAL", "BLOB", "NUMERIC", "VARCHAR(255)", "BOOLEAN", "DATE", "DATETIME"],
+  oracle: [
+    "INTEGER", "NUMBER", "NUMBER(10)", "NUMBER(10,2)", "VARCHAR2(255)", "NVARCHAR2(255)",
+    "CHAR(1)", "NCHAR(1)", "CLOB", "NCLOB", "BLOB", "RAW(16)", "DATE", "TIMESTAMP",
+    "TIMESTAMP WITH TIME ZONE", "BINARY_FLOAT", "BINARY_DOUBLE",
+  ],
+  mssql: [
+    "INTEGER", "BIGINT", "SMALLINT", "TINYINT", "VARCHAR(255)", "NVARCHAR(255)",
+    "VARCHAR(MAX)", "NVARCHAR(MAX)", "CHAR(1)", "NCHAR(1)", "DECIMAL(10,2)", "NUMERIC(10,2)",
+    "FLOAT", "REAL", "BIT", "DATE", "TIME", "DATETIME", "DATETIME2", "DATETIMEOFFSET",
+    "UNIQUEIDENTIFIER", "VARBINARY(MAX)", "XML",
+  ],
+};
+
+function quoteIdentifier(dbType: DbType, name: string): string {
+  if (dbType === "mysql") return `\`${name.replace(/`/g, "``")}\``;
+  if (dbType === "mssql") return `[${name.replace(/]/g, "]]")}]`;
+  return `"${name.replace(/"/g, '""')}"`;
+}
+
+// Keep generated object names short enough for older Oracle identifiers, and
+// independent of user-provided punctuation or identifier length.
+function timestampObjectName(tableName: string): string {
+  let hash = 2166136261;
+  for (const character of tableName) {
+    hash = Math.imul(hash ^ character.charCodeAt(0), 16777619);
+  }
+  return `dataace_updated_${(hash >>> 0).toString(16)}`;
+}
+
+function sqliteRowIdentifier(columns: TableColumn[]): string | undefined {
+  const names = new Set(columns.map(column => column.name.trim().toLowerCase()));
+  return ["rowid", "_rowid_", "oid"].find(name => !names.has(name));
+}
+
+export function validateTableDefinition(
+  dbType: DbType,
+  tableName: string,
+  columns: TableColumn[],
+  timestamps: boolean,
+): string | null {
+  if (!tableName.trim()) return "Enter a table name.";
+  if (tableName.includes("\0")) return "Table names cannot contain a null character.";
+  if (columns.length === 0) return "Add at least one column.";
+
+  const names = new Set<string>();
+  for (const column of columns) {
+    const name = column.name.trim();
+    if (!name || !column.type.trim()) return "Enter a name and type for every column.";
+    if (name.includes("\0")) return "Column names cannot contain a null character.";
+    const normalizedName = name.toLowerCase();
+    if (names.has(normalizedName)) return `Column names must be unique: ${name}.`;
+    names.add(normalizedName);
+    if (timestamps && (normalizedName === "created_at" || normalizedName === "updated_at")) {
+      return "Remove the created_at and updated_at columns before enabling timestamps; they are added automatically.";
+    }
+  }
+
+  const primaryKeys = columns.filter(column => column.pk);
+  if (timestamps && dbType === "mssql" && primaryKeys.length === 0) {
+    return "Select a primary key to automatically update SQL Server timestamps.";
+  }
+  if (timestamps && dbType === "sqlite" && primaryKeys.length === 0 && !sqliteRowIdentifier(columns)) {
+    return "Select a primary key or rename a rowid, _rowid_, or oid column to enable automatic timestamps.";
+  }
+  return null;
+}
+
+export function buildCreateTableStatements(
+  dbType: DbType,
+  tableName: string,
+  columns: TableColumn[],
+  timestamps: boolean,
+): string[] {
+  const name = tableName.trim();
+  const quote = (identifier: string) => quoteIdentifier(dbType, identifier);
+  const table = quote(name);
+  const primaryKeys = columns.filter(column => column.pk);
+  const definitions = columns.map(column => {
+    const type = column.type.trim();
+    const singlePrimaryKey = column.pk && primaryKeys.length === 1;
+    let definition = `  ${quote(column.name.trim())} ${type}`;
+
+    if (singlePrimaryKey && dbType === "sqlite" && /^INTEGER$/i.test(type)) {
+      return `${definition} PRIMARY KEY AUTOINCREMENT`;
+    }
+    if (singlePrimaryKey && dbType === "mysql" && /^(?:TINYINT|SMALLINT|MEDIUMINT|INT|INTEGER|BIGINT)(?:\s*\(\s*\d+\s*\))?(?:\s+UNSIGNED)?$/i.test(type)) {
+      definition += " AUTO_INCREMENT";
+    }
+    if (singlePrimaryKey && dbType === "postgres" && /^(?:SMALLINT|INT2|INT|INTEGER|INT4|BIGINT|INT8)$/i.test(type)) {
+      definition += " GENERATED BY DEFAULT AS IDENTITY";
+    }
+    if (column.notNull || column.pk) definition += " NOT NULL";
+    if (singlePrimaryKey) definition += " PRIMARY KEY";
+    return definition;
+  });
+
+  const created = quote("created_at");
+  const updated = quote("updated_at");
+  if (timestamps) {
+    const type = dbType === "sqlite" ? "TEXT" : dbType === "mssql" ? "DATETIME2" : "TIMESTAMP";
+    // Oracle places DEFAULT before its inline NOT NULL constraint.
+    const timestampDefinition = dbType === "oracle"
+      ? `${type} DEFAULT CURRENT_TIMESTAMP NOT NULL`
+      : `${type} NOT NULL DEFAULT CURRENT_TIMESTAMP`;
+    definitions.push(`  ${created} ${timestampDefinition}`);
+    definitions.push(`  ${updated} ${timestampDefinition}${dbType === "mysql" ? " ON UPDATE CURRENT_TIMESTAMP" : ""}`);
+  }
+
+  if (primaryKeys.length > 1) {
+    definitions.push(`  PRIMARY KEY (${primaryKeys.map(column => quote(column.name.trim())).join(", ")})`);
+  }
+
+  const statements = [`CREATE TABLE ${table} (\n${definitions.join(",\n")}\n)`];
+  if (!timestamps || dbType === "mysql") return statements;
+
+  const objectName = quote(timestampObjectName(name));
+  if (dbType === "postgres") {
+    // Dropping a PostgreSQL table removes its trigger but leaves its function.
+    // Reuse that function when a table with the same name is created again.
+    statements.push(
+      `CREATE OR REPLACE FUNCTION ${objectName}() RETURNS TRIGGER AS $dataace$\nBEGIN\n  IF NEW.${updated} IS NOT DISTINCT FROM OLD.${updated} THEN\n    NEW.${updated} := CURRENT_TIMESTAMP;\n  END IF;\n  RETURN NEW;\nEND;\n$dataace$ LANGUAGE plpgsql`,
+      `CREATE TRIGGER ${objectName}\nBEFORE UPDATE ON ${table}\nFOR EACH ROW EXECUTE FUNCTION ${objectName}()`,
+    );
+  } else if (dbType === "oracle") {
+    statements.push(`CREATE TRIGGER ${objectName}\nBEFORE UPDATE ON ${table}\nFOR EACH ROW\nBEGIN\n  IF :NEW.${updated} = :OLD.${updated} THEN\n    :NEW.${updated} := CURRENT_TIMESTAMP;\n  END IF;\nEND;`);
+  } else if (dbType === "mssql") {
+    const join = primaryKeys.map(column => `target.${quote(column.name.trim())} = source.${quote(column.name.trim())}`).join(" AND ");
+    statements.push(`CREATE TRIGGER ${objectName}\nON ${table}\nAFTER UPDATE\nAS\nBEGIN\n  SET NOCOUNT ON;\n  IF UPDATE(${updated}) RETURN;\n  UPDATE target SET ${updated} = CURRENT_TIMESTAMP\n  FROM ${table} AS target\n  INNER JOIN inserted AS source ON ${join};\nEND`);
+  } else {
+    const match = primaryKeys.length > 0
+      ? primaryKeys.map(column => `${quote(column.name.trim())} IS NEW.${quote(column.name.trim())}`).join(" AND ")
+      : `${quote(sqliteRowIdentifier(columns) ?? "rowid")} = NEW.${quote(sqliteRowIdentifier(columns) ?? "rowid")}`;
+    // Once the trigger writes CURRENT_TIMESTAMP its guard becomes false, even
+    // when recursive_triggers is enabled and two updates happen in one second.
+    statements.push(`CREATE TRIGGER ${objectName}\nAFTER UPDATE ON ${table}\nFOR EACH ROW\nWHEN NEW.${updated} IS OLD.${updated} AND NEW.${updated} IS NOT CURRENT_TIMESTAMP\nBEGIN\n  UPDATE ${table} SET ${updated} = CURRENT_TIMESTAMP\n  WHERE ${match};\nEND`);
+  }
+  return statements;
+}

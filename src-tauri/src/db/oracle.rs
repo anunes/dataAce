@@ -2,7 +2,7 @@ use super::types::*;
 
 pub struct OracleConn {
     #[cfg(feature = "oracle-support")]
-    conn: oracle::Connection,
+    pub(crate) conn: oracle::Connection,
     pub connection_string: String,
 }
 
@@ -203,7 +203,7 @@ impl OracleConn {
                     schema.to_uppercase().replace('\'', "''")
                 )
             };
-            let result = self.execute(&sql).await?;
+            let result = self.execute(&sql, None).await?;
             if let Some(row) = result.rows.first() {
                 if let Some(Some(ddl)) = row.first() {
                     return Ok(ddl.clone());

@@ -7,7 +7,7 @@ use tokio_util::compat::{Compat, TokioAsyncWriteCompatExt};
 use super::types::*;
 
 pub struct MssqlConn {
-    client: Client<Compat<TcpStream>>,
+    pub(crate) client: Client<Compat<TcpStream>>,
     pub current_db: String,
 }
 
@@ -388,7 +388,7 @@ impl MssqlConn {
     }
 }
 
-fn row_value_to_string(row: &Row, idx: usize) -> Option<String> {
+pub(crate) fn row_value_to_string(row: &Row, idx: usize) -> Option<String> {
     if let Ok(Some(v)) = row.try_get::<&str, _>(idx) {
         return Some(v.to_string());
     }

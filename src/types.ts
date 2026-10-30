@@ -29,6 +29,12 @@ export interface ConnectionProfile {
   skipSslVerify: boolean;
 }
 
+export interface DatabaseTransferResult {
+  targetDatabase: string;
+  sourceRetained: boolean;
+  warnings: string[];
+}
+
 export interface ColumnDef {
   name: string;
   col_type: string;
@@ -70,7 +76,7 @@ export interface IndexInfo {
   index_type: string;
 }
 
-export type ActiveTab = "browse" | "structure" | "query" | "relations" | "triggers" | "info";
+export type ActiveTab = "browse" | "structure" | "query" | "builder" | "relations" | "triggers" | "info";
 export type Theme = "dark" | "light" | "system";
 
 export interface ServerStatus {

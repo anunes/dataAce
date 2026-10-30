@@ -3,13 +3,15 @@ import { invoke } from "@tauri-apps/api/core";
 import { save, open as openDialog } from "@tauri-apps/plugin-dialog";
 import { writeTextFile } from "@tauri-apps/plugin-fs";
 import { desktopDir } from "@tauri-apps/api/path";
-import { ConnectionProfile, ActiveTab, TableInfo, Theme, QueryResult, ServerStatus } from "./types";
+import { ConnectionProfile, ActiveTab, TableInfo, Theme, QueryResult, ServerStatus, DatabaseTransferResult } from "./types";
 import ConnectionsPanel from "./components/ConnectionsPanel";
 import AddConnectionModal from "./components/AddConnectionModal";
 import CreateDatabaseWizard from "./components/CreateDatabaseWizard";
+import CreateTableModal from "./components/CreateTableModal";
+import MoveDatabaseModal from "./components/MoveDatabaseModal";
 import Sidebar from "./components/Sidebar";
 import MainView from "./components/MainView";
-import { Sun, Moon, Monitor, Database, CheckCircle, XCircle, ArrowRightLeft } from "lucide-react";
+import { Sun, Moon, Monitor, Database, Grid3x3, CheckCircle, XCircle, ArrowRightLeft } from "lucide-react";
 import MigrationWizard from "./components/MigrationWizard";
 import AboutModal from "./components/AboutModal";
 import UserManagerModal from "./components/UserManagerModal";
@@ -24,8 +26,17 @@ interface SessionState {
   activeTab: ActiveTab;
 }
 
+interface TableTargetConnection {
+  connId: string;
+  databases: string[];
+}
+
 const PROFILES_KEY = "dataace_profiles";
 const THEME_KEY = "dataace_theme";
+const SYSTEM_DATABASES: Partial<Record<ConnectionProfile["type"], string[]>> = {
+  mysql: ["information_schema", "mysql", "performance_schema", "sys"],
+  postgres: ["template0", "template1"],
+};
 
 function generateId() {
   return crypto.randomUUID();
@@ -124,6 +135,12 @@ export default function App() {
   const [editingProfile, setEditingProfile] = useState<ConnectionProfile | null>(null);
   const [tableExportPending, setTableExportPending] = useState(false);
   const [showCreateDbWizard, setShowCreateDbWizard] = useState(false);
+  const [showCreateTable, setShowCreateTable] = useState(false);
+  const [databaseMove, setDatabaseMove] = useState<{ sourceId: string; targetId?: string } | null>(null);
+  const newTableConnectionResolver = useRef<((profileId: string | null) => void) | null>(null);
+  const tableTargetConnections = useRef(new Map<string, TableTargetConnection>());
+  const tableTargetPromises = useRef(new Map<string, Promise<TableTargetConnection>>());
+  const tableTargetGeneration = useRef(0);
   const [showMigration, setShowMigration] = useState(false);
   const [showAbout, setShowAbout] = useState(false);
   const [showUserManager, setShowUserManager] = useState(false);
@@ -255,7 +272,41 @@ export default function App() {
     });
     setShowAddModal(false);
     setEditingProfile(null);
+    newTableConnectionResolver.current?.(profile.id);
+    newTableConnectionResolver.current = null;
   }, []);
+
+  const closeAddConnection = useCallback(() => {
+    setShowAddModal(false);
+    setEditingProfile(null);
+    newTableConnectionResolver.current?.(null);
+    newTableConnectionResolver.current = null;
+  }, []);
+
+  const addTableConnection = useCallback(() => new Promise<string | null>(resolve => {
+    newTableConnectionResolver.current = resolve;
+    setEditingProfile(null);
+    setShowAddModal(true);
+  }), []);
+
+  const releaseTargetConnections = useCallback(() => {
+    tableTargetGeneration.current += 1;
+    for (const { connId } of tableTargetConnections.current.values()) {
+      invoke("disconnect", { connId }).catch(() => {});
+    }
+    tableTargetConnections.current.clear();
+    tableTargetPromises.current.clear();
+  }, []);
+
+  const closeCreateTable = useCallback(() => {
+    setShowCreateTable(false);
+    releaseTargetConnections();
+  }, [releaseTargetConnections]);
+
+  const closeDatabaseMove = useCallback(() => {
+    setDatabaseMove(null);
+    releaseTargetConnections();
+  }, [releaseTargetConnections]);
 
   const deleteProfile = useCallback(async (id: string) => {
     if (sessions[id]) {
@@ -281,7 +332,8 @@ export default function App() {
     try {
       const connId = await invokeConnect(profile);
       const databases = await invoke<string[]>("list_databases", { connId });
-      const firstDb = databases[0] ?? null;
+      const preferredDb = profile.type === "postgres" ? profile.database || "postgres" : profile.database;
+      const firstDb = preferredDb && databases.includes(preferredDb) ? preferredDb : databases[0] ?? null;
       let tables: TableInfo[] = [];
       if (firstDb) {
         tables = await invoke<TableInfo[]>("list_tables", { connId, database: firstDb });
@@ -404,17 +456,138 @@ export default function App() {
     await handleRefresh(profileId);
   }, [sessions, handleRefresh]);
 
-  const handleCreateTable = useCallback(async (profileId: string, sql: string) => {
+  const getTableTargetConnection = useCallback(async (profileId: string): Promise<TableTargetConnection> => {
     const session = sessions[profileId];
-    if (!session) return;
-    const result = await invoke<QueryResult>("create_table", {
-      connId: session.connId,
-      database: session.selectedDb,
-      sql,
-    });
-    if (result?.error) throw new Error(result.error);
-    await handleRefresh(profileId);
-  }, [sessions, handleRefresh]);
+    if (session) return { connId: session.connId, databases: session.databases };
+    const existing = tableTargetConnections.current.get(profileId);
+    if (existing) return existing;
+    const pending = tableTargetPromises.current.get(profileId);
+    if (pending) return pending;
+    const profile = profiles.find(p => p.id === profileId);
+    if (!profile) throw new Error("The selected connection is no longer available.");
+    const generation = tableTargetGeneration.current;
+    const connecting = (async () => {
+      const connId = await invokeConnect(profile);
+      try {
+        const databases = await invoke<string[]>("list_databases", { connId });
+        if (generation !== tableTargetGeneration.current) throw new Error("Table creation was closed.");
+        const connection = { connId, databases };
+        tableTargetConnections.current.set(profileId, connection);
+        return connection;
+      } catch (e) {
+        await invoke("disconnect", { connId }).catch(() => {});
+        throw e;
+      }
+    })();
+    tableTargetPromises.current.set(profileId, connecting);
+    try {
+      return await connecting;
+    } finally {
+      if (tableTargetPromises.current.get(profileId) === connecting) tableTargetPromises.current.delete(profileId);
+    }
+  }, [sessions, profiles]);
+
+  const loadTableDatabases = useCallback(async (profileId: string) => {
+    return (await getTableTargetConnection(profileId)).databases;
+  }, [getTableTargetConnection]);
+
+  const handleDatabaseTransferred = useCallback(async (targetId: string, targetConnId: string, result: DatabaseTransferResult): Promise<string[]> => {
+    const profile = profiles.find(entry => entry.id === targetId);
+    if (!profile) return ["The destination connection was removed. Add it again to browse the transferred database."];
+    const warnings: string[] = [];
+    const existingSession = sessions[targetId];
+    let connId = targetConnId;
+    let selectedDb: string | null = existingSession?.selectedDb ?? result.targetDatabase;
+    // Keep an existing PostgreSQL session and its pending queries intact.
+    // Its newly transferred database is available in the refreshed sidebar.
+    if (profile.type === "postgres" && !existingSession) {
+      try {
+        connId = await invokeConnect({ ...profile, database: result.targetDatabase });
+        invoke("disconnect", { connId: targetConnId }).catch(() => {});
+      } catch (error) {
+        selectedDb = profile.database || null;
+        warnings.push(`The transfer completed, but opening the new database failed: ${String(error)}`);
+      }
+    }
+    let databases = [...new Set([...(existingSession?.databases ?? []), result.targetDatabase])];
+    try {
+      databases = await invoke<string[]>("list_databases", { connId });
+      if (profile.type === "sqlite") selectedDb = databases[0] ?? result.targetDatabase;
+    } catch (error) {
+      warnings.push(`Refresh the destination connection to update its database list: ${String(error)}`);
+    }
+    if (!selectedDb) selectedDb = databases[0] ?? null;
+    let tables = existingSession?.tables ?? [];
+    if (selectedDb) {
+      try { tables = await invoke<TableInfo[]>("list_tables", { connId, database: selectedDb }); }
+      catch (error) { warnings.push(`Refresh the destination database to update its table list: ${String(error)}`); }
+    }
+    tableTargetConnections.current.delete(targetId);
+    setSessions(previous => ({ ...previous, [targetId]: {
+      connId, databases, selectedDb, tables,
+      selectedTable: existingSession?.selectedTable ?? null,
+      activeTab: existingSession?.activeTab ?? "browse",
+    } }));
+    setSelectedProfileId(targetId);
+    return warnings;
+  }, [profiles, sessions]);
+
+  const handleCreateTable = useCallback(async (profileId: string, database: string, statements: string[]) => {
+    const profile = profiles.find(p => p.id === profileId);
+    if (!profile) throw new Error("The selected connection is no longer available.");
+    if (!database || !statements.length) throw new Error("Select a database and define the table first.");
+    const target = await getTableTargetConnection(profileId);
+    const session = sessions[profileId];
+    // PostgreSQL connections are bound to one database. Check the actual
+    // database before reconnecting, preserving pending work and session settings
+    // when the user creates a table in the database they are already using.
+    let connId = target.connId;
+    if (profile.type === "postgres") {
+      const current = await invoke<QueryResult>("execute_query", { connId, sql: "SELECT current_database()" });
+      if (current.error) throw new Error(current.error);
+      const currentDatabase = current.rows[0]?.[0];
+      if (!currentDatabase) throw new Error("Cannot determine the PostgreSQL connection's current database.");
+      if (currentDatabase !== database) connId = await invokeConnect({ ...profile, database });
+    }
+    try {
+      const result = await invoke<QueryResult>("create_table", {
+        connId,
+        database,
+        sql: statements[0],
+        additionalStatements: statements.slice(1),
+      });
+      if (result?.error) throw new Error(result.error);
+    } catch (e) {
+      if (connId !== target.connId) await invoke("disconnect", { connId }).catch(() => {});
+      throw e;
+    }
+
+    // Adopt the target only after creation succeeds. Closing the modal then
+    // releases the unused discovery connections, without closing this session.
+    tableTargetConnections.current.delete(profileId);
+    if (target.connId !== connId) invoke("disconnect", { connId: target.connId }).catch(() => {});
+    const sameDatabase = session?.selectedDb === database;
+    const nextSession: SessionState = {
+      connId,
+      databases: target.databases,
+      selectedDb: database,
+      tables: sameDatabase ? session.tables : [],
+      selectedTable: sameDatabase ? session.selectedTable : null,
+      activeTab: sameDatabase ? session.activeTab : "browse",
+    };
+    setSessions(prev => ({ ...prev, [profileId]: nextSession }));
+    setSelectedProfileId(profileId);
+    try {
+      const tables = await invoke<TableInfo[]>("list_tables", { connId, database });
+      setSessions(prev => prev[profileId]?.connId === connId
+        ? { ...prev, [profileId]: { ...prev[profileId], tables } }
+        : prev);
+    } catch (e) {
+      // The table was created successfully; a refresh error must not invite a
+      // duplicate creation attempt. The regular Refresh action can retry it.
+      console.error("Table created, but the table list could not be refreshed:", e);
+    }
+  }, [profiles, sessions, getTableTargetConnection]);
 
   const handleOpenSqliteFile = useCallback(async () => {
     try {
@@ -601,6 +774,10 @@ export default function App() {
         <ConnectionsPanel
           profiles={profiles}
           activeSessions={new Set(Object.keys(sessions))}
+          databaseCounts={Object.fromEntries(Object.entries(sessions).map(([id, session]) => {
+            const systemNames = SYSTEM_DATABASES[profiles.find(profile => profile.id === id)?.type ?? "sqlite"] ?? [];
+            return [id, session.databases.filter(name => !systemNames.includes(name.toLowerCase())).length];
+          }))}
           selectedId={selectedProfileId}
           connectingId={connectingId}
           onSelect={id => {
@@ -613,6 +790,8 @@ export default function App() {
           onDuplicate={duplicateProfile}
           onDisconnect={disconnectProfile}
           onOpenSqlite={handleOpenSqliteFile}
+          onNewTable={() => setShowCreateTable(true)}
+          onMoveDatabase={(sourceId, targetId) => setDatabaseMove({ sourceId, targetId })}
           themeIcon={<ThemeIcon size={14} />}
           onCycleTheme={cycleTheme}
           onMigrate={() => setShowMigration(true)}
@@ -655,7 +834,7 @@ export default function App() {
                 onDropTable={t => handleDropTable(selectedProfileId!, t)}
                 onDropDatabase={db => handleDropDatabase(selectedProfileId!, db)}
                 onCreateDatabase={name => handleCreateDatabase(selectedProfileId!, name)}
-                onCreateTable={sql => handleCreateTable(selectedProfileId!, sql)}
+                onNewTable={() => setShowCreateTable(true)}
                 onNewConnection={() => { setEditingProfile(null); setShowAddModal(true); }}
                 onExportTable={() => setTableExportPending(true)}
                 onExportDatabase={() => { setExportFormat(null); setShowExportDialog(true); }}
@@ -690,7 +869,7 @@ export default function App() {
             <img src="/icon.png" alt="DataAce" className="w-20 h-20 opacity-80" />
             <div className="text-4xl font-bold text-gray-300 dark:text-gray-600">DataAce</div>
             <p className="text-gray-400 dark:text-gray-500">Select a connection or add a new one</p>
-            <div className="flex gap-3 mb-2">
+            <div className="flex flex-wrap justify-center gap-3 mb-2 px-4">
               <button
                 onClick={() => { setEditingProfile(null); setShowAddModal(true); }}
                 className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-medium text-white"
@@ -702,6 +881,12 @@ export default function App() {
                 className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium"
               >
                 <Database size={15} /> New Database
+              </button>
+              <button
+                onClick={() => setShowCreateTable(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-100 rounded-lg text-sm font-medium"
+              >
+                <Grid3x3 size={15} /> New Table
               </button>
               <button
                 onClick={() => setShowMigration(true)}
@@ -737,14 +922,35 @@ export default function App() {
           key={editingProfile?.id ?? "new"}
           profile={editingProfile}
           onSave={saveProfile}
-          onClose={() => { setShowAddModal(false); setEditingProfile(null); }}
+          onClose={closeAddConnection}
           onTestConnection={testConnection}
+        />
+      )}
+      {showCreateTable && (
+        <CreateTableModal
+          profiles={profiles}
+          initialProfileId={selectedProfileId}
+          initialDatabase={selectedSession?.selectedDb ?? null}
+          onLoadDatabases={loadTableDatabases}
+          onCreateTable={handleCreateTable}
+          onNewConnection={addTableConnection}
+          onClose={closeCreateTable}
         />
       )}
       {showCreateDbWizard && (
         <CreateDatabaseWizard
           onClose={() => setShowCreateDbWizard(false)}
           onCreated={handleDatabaseCreated}
+        />
+      )}
+      {databaseMove && (
+        <MoveDatabaseModal
+          profiles={profiles}
+          sourceProfileId={databaseMove.sourceId}
+          initialTargetProfileId={databaseMove.targetId}
+          onPrepareConnection={getTableTargetConnection}
+          onTransferred={handleDatabaseTransferred}
+          onClose={closeDatabaseMove}
         />
       )}
       {showMigration && (

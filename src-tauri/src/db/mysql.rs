@@ -7,7 +7,7 @@ use std::time::Instant;
 use super::types::*;
 
 pub struct MysqlConn {
-    pool: Pool,
+    pub(crate) pool: Pool,
     pub current_db: Option<String>,
 }
 
