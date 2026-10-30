@@ -165,7 +165,6 @@ export default function VisualQueryBuilder({ connId, selectedDb, selectedTable, 
   const compiled = useMemo(() => compileQuery(dbType, query, schema), [dbType, query, schema]);
   const loading = tablesLoading || schemaLoading || addingJoin;
   const canRun = !!selectedDb && !!query.source && !loading && !metadataError && !compiled.error;
-  const sourceColumns = query.source ? schema[query.source.name] ?? [] : [];
   const resultPageCount = Math.max(1, Math.ceil((result?.rows.length ?? 0) / pageSize));
 
   function mutate(update: (previous: QueryBuilderState) => QueryBuilderState) {
